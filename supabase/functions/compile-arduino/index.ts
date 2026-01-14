@@ -7,7 +7,7 @@ const corsHeaders = {
 
 interface CompileRequest {
   code: string;
-  board: string; // e.g., 'arduino:avr:uno', 'arduino:avr:nano', 'arduino:avr:mega'
+  board: string;
 }
 
 interface CompileResponse {
@@ -15,13 +15,17 @@ interface CompileResponse {
   hex?: string;
   output?: string;
   error?: string;
+  size?: {
+    flash: number | null;
+    ram: number | null;
+  };
 }
 
 // Board FQBN mappings
-const BOARD_CONFIGS: Record<string, { fqbn: string; name: string }> = {
-  'arduino:avr:uno': { fqbn: 'arduino:avr:uno', name: 'Arduino Uno' },
-  'arduino:avr:nano': { fqbn: 'arduino:avr:nano:cpu=atmega328', name: 'Arduino Nano' },
-  'arduino:avr:mega': { fqbn: 'arduino:avr:mega:cpu=atmega2560', name: 'Arduino Mega 2560' },
+const BOARD_FQBN_MAP: Record<string, string> = {
+  'arduino:avr:uno': 'arduino:avr:uno',
+  'arduino:avr:nano': 'arduino:avr:nano:cpu=atmega328',
+  'arduino:avr:mega': 'arduino:avr:mega:cpu=atmega2560',
 };
 
 Deno.serve(async (req) => {
@@ -47,93 +51,111 @@ Deno.serve(async (req) => {
       );
     }
 
-    const boardConfig = BOARD_CONFIGS[board];
-    if (!boardConfig) {
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: `Unsupported board: ${board}. Supported boards: ${Object.keys(BOARD_CONFIGS).join(', ')}` 
-        }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    // Map board to FQBN
+    const fqbn = BOARD_FQBN_MAP[board] || board;
 
-    // In a production environment, this would call an external Arduino compilation service
-    // or a containerized Arduino CLI service. For now, we return a simulated response
-    // that explains the architecture needed.
-    
-    // Option 1: Use an external compilation API (if configured)
-    const externalCompilerUrl = Deno.env.get('ARDUINO_COMPILER_URL');
-    
-    if (externalCompilerUrl) {
-      try {
-        const compileResponse = await fetch(externalCompilerUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code, fqbn: boardConfig.fqbn }),
-        });
-        
-        const result = await compileResponse.json();
+    // Get external compiler URL from environment
+    const compilerUrl = Deno.env.get('ARDUINO_COMPILER_URL');
+
+    if (!compilerUrl) {
+      // No external compiler configured - provide helpful message
+      const validation = validateArduinoCode(code);
+      
+      if (!validation.valid) {
         return new Response(
-          JSON.stringify(result),
+          JSON.stringify({
+            success: false,
+            error: validation.error,
+            output: `Code validation failed: ${validation.error}`,
+          } as CompileResponse),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
-      } catch (err) {
-        console.error('External compiler error:', err);
-        // Fall through to simulation mode
       }
-    }
-
-    // Simulation mode: Return compilation info without actual HEX
-    // This validates the code structure and provides feedback
-    const validationResult = validateArduinoCode(code);
-    
-    if (!validationResult.valid) {
+      
       return new Response(
         JSON.stringify({
           success: false,
-          error: validationResult.error,
-          output: `Compilation failed for ${boardConfig.name}\n${validationResult.error}`,
+          error: 'Compiler service not configured',
+          output: [
+            '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+            '⚠️  ARDUINO_COMPILER_URL not configured',
+            '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+            '',
+            '✓ Code validation: PASSED',
+            `✓ Board: ${board} → ${fqbn}`,
+            '',
+            'To enable real HEX compilation, deploy the compiler service:',
+            '',
+            '1. Go to docs/arduino-compiler-service/README.md',
+            '2. Deploy to Render.com, Railway.app, or Google Cloud Run',
+            '3. Add ARDUINO_COMPILER_URL secret in Cloud → Secrets',
+            '',
+            'Example: ARDUINO_COMPILER_URL = https://your-service.onrender.com',
+            '',
+            '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+          ].join('\n'),
+        } as CompileResponse),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Call external compiler service
+    console.log(`Calling compiler service: ${compilerUrl}/compile`);
+    
+    const compileResponse = await fetch(`${compilerUrl}/compile`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, fqbn }),
+    });
+
+    if (!compileResponse.ok) {
+      const errorText = await compileResponse.text();
+      console.error('Compiler service error:', errorText);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: `Compiler service error: ${compileResponse.status}`,
+          output: errorText,
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Return success with compilation info
-    const response: CompileResponse = {
-      success: true,
-      output: [
-        `Arduino Web IDE Compiler`,
-        `========================`,
-        `Board: ${boardConfig.name} (${boardConfig.fqbn})`,
-        ``,
-        `Code validation: PASSED`,
-        ``,
-        `Note: Full compilation requires an external Arduino CLI service.`,
-        `The code structure has been validated and is ready for compilation.`,
-        ``,
-        `To enable full compilation:`,
-        `1. Set up a Docker container with Arduino CLI`,
-        `2. Configure ARDUINO_COMPILER_URL secret`,
-        `3. The service will compile and return HEX files`,
-        ``,
-        `Code size estimate: ${estimateCodeSize(code)} bytes`,
-      ].join('\n'),
-      // In production, this would be the actual HEX file content
-      hex: undefined,
-    };
+    const result = await compileResponse.json();
+    
+    // Format successful output
+    if (result.success && result.size) {
+      const formattedOutput = [
+        '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+        '✓ COMPILATION SUCCESSFUL',
+        '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+        '',
+        `Board: ${board}`,
+        `FQBN: ${fqbn}`,
+        '',
+        result.size.flash ? `Flash: ${result.size.flash} bytes` : '',
+        result.size.ram ? `RAM: ${result.size.ram} bytes` : '',
+        '',
+        'HEX file generated successfully!',
+        'Ready to upload to board.',
+        '',
+        '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+      ].filter(Boolean).join('\n');
+      
+      result.output = formattedOutput;
+    }
 
     return new Response(
-      JSON.stringify(response),
+      JSON.stringify(result),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
     console.error('Compile error:', error);
     return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error occurred' 
+      JSON.stringify({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
@@ -157,29 +179,23 @@ function validateArduinoCode(code: string): { valid: boolean; error?: string } {
   // Check for basic syntax issues
   const openBraces = (code.match(/{/g) || []).length;
   const closeBraces = (code.match(/}/g) || []).length;
-  
+
   if (openBraces !== closeBraces) {
     return { valid: false, error: `Mismatched braces: ${openBraces} opening, ${closeBraces} closing` };
   }
 
   const openParens = (code.match(/\(/g) || []).length;
   const closeParens = (code.match(/\)/g) || []).length;
-  
+
   if (openParens !== closeParens) {
     return { valid: false, error: `Mismatched parentheses: ${openParens} opening, ${closeParens} closing` };
   }
 
-  return { valid: true };
-}
+  // Check for common errors
+  const semicolonAfterBrace = /}\s*;/.test(code);
+  if (semicolonAfterBrace) {
+    // This is actually valid in some cases (struct, class)
+  }
 
-// Rough estimate of compiled code size
-function estimateCodeSize(code: string): number {
-  // Very rough estimate based on code length
-  // Actual size depends on libraries used, optimizations, etc.
-  const baseSize = 444; // Minimal Arduino program
-  const codeLines = code.split('\n').filter(line => 
-    line.trim() && !line.trim().startsWith('//')
-  ).length;
-  
-  return baseSize + (codeLines * 20);
+  return { valid: true };
 }

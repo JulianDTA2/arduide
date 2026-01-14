@@ -42,7 +42,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { ARDUINO_BOARDS, isWebSerialSupported, requestSerialPort } from '@/lib/webserial';
+import { ARDUINO_BOARDS, isWebSerialSupported, requestSerialPort, uploadToArduino, parseHexFile } from '@/lib/webserial';
 import { compileArduinoCode } from '@/lib/cloud-storage';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -76,7 +76,8 @@ const Toolbar: React.FC<ToolbarProps> = ({
     projects,
     loadProjects,
     addConsoleMessage,
-    generatedCode
+    generatedCode,
+    setActiveTab
   } = useIDE();
 
   const { user, isAuthenticated, signOut, loading: authLoading } = useAuth();
@@ -86,6 +87,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
   const [showNoSerialDialog, setShowNoSerialDialog] = React.useState(false);
   const [showAuthDialog, setShowAuthDialog] = React.useState(false);
   const [isSyncing, setIsSyncing] = React.useState(false);
+  const [compiledHex, setCompiledHex] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     loadProjects();
@@ -111,55 +113,121 @@ const Toolbar: React.FC<ToolbarProps> = ({
   };
 
   const handleBuild = async () => {
-    addConsoleMessage('info', 'Starting build...');
+    addConsoleMessage('info', '━━━ Starting compilation ━━━');
+    addConsoleMessage('info', `Board: ${selectedBoard.name} (${selectedBoard.fqbn})`);
     setIsUploading(true);
     setUploadProgress(10);
+    setActiveTab('console'); // Switch to console to show output
 
     try {
+      setUploadProgress(30);
       const result = await compileArduinoCode(generatedCode, selectedBoard.fqbn);
-      
-      setUploadProgress(100);
+      setUploadProgress(90);
       
       if (result.success) {
-        addConsoleMessage('success', 'Build completed successfully!');
-        if (result.output) {
-          addConsoleMessage('info', result.output);
+        // Store HEX for upload
+        if (result.hex) {
+          setCompiledHex(result.hex);
+          addConsoleMessage('success', '✓ Compilation successful! HEX file ready.');
         }
-        toast.success('Build completed');
+        if (result.output) {
+          // Split output into lines for better display
+          result.output.split('\n').forEach(line => {
+            if (line.trim()) {
+              addConsoleMessage('info', line);
+            }
+          });
+        }
+        toast.success('Build completed - ready to upload!');
       } else {
-        addConsoleMessage('error', result.error || 'Build failed');
-        toast.error('Build failed');
+        setCompiledHex(null);
+        addConsoleMessage('error', '✗ Compilation failed');
+        if (result.error) {
+          addConsoleMessage('error', result.error);
+        }
+        if (result.output) {
+          result.output.split('\n').forEach(line => {
+            if (line.trim()) {
+              addConsoleMessage('warning', line);
+            }
+          });
+        }
+        toast.error('Build failed - check console for details');
       }
+      setUploadProgress(100);
     } catch (error) {
       addConsoleMessage('error', `Build error: ${error}`);
       toast.error('Build failed');
+      setCompiledHex(null);
     } finally {
-      setIsUploading(false);
+      setTimeout(() => setIsUploading(false), 500);
     }
   };
 
-  const handleUpload = () => {
+  const handleUpload = async () => {
     if (!isConnected) {
       toast.error('Please connect a board first');
-      addConsoleMessage('warning', 'No board connected');
+      addConsoleMessage('warning', 'No board connected. Click "Connect" to select your Arduino.');
       return;
     }
 
-    addConsoleMessage('info', 'Starting upload...');
-    setIsUploading(true);
-    let progress = 0;
-    
-    // Simulate upload process (would use HEX from compilation in production)
-    const interval = setInterval(() => {
-      progress += 5;
-      setUploadProgress(progress);
-      if (progress >= 100) {
-        clearInterval(interval);
-        setIsUploading(false);
-        addConsoleMessage('success', 'Upload completed successfully!');
-        toast.success('Upload completed');
+    if (!compiledHex) {
+      // If no HEX, run build first
+      addConsoleMessage('info', 'No compiled code. Building first...');
+      await handleBuild();
+      
+      // Check if build succeeded and we have HEX now
+      if (!compiledHex) {
+        toast.error('Build required before upload');
+        addConsoleMessage('error', 'Cannot upload - build failed or no HEX generated.');
+        addConsoleMessage('info', 'Configure ARDUINO_COMPILER_URL secret to enable real compilation.');
+        return;
       }
-    }, 200);
+    }
+
+    addConsoleMessage('info', '━━━ Starting upload to board ━━━');
+    addConsoleMessage('info', `Target: ${selectedBoard.name}`);
+    setIsUploading(true);
+    setActiveTab('console');
+
+    try {
+      // Request a new port for upload (user may need to reselect)
+      const port = await requestSerialPort();
+      if (!port) {
+        addConsoleMessage('warning', 'Upload cancelled - no port selected');
+        setIsUploading(false);
+        return;
+      }
+
+      // Parse HEX file
+      const hexData = parseHexFile(compiledHex);
+      addConsoleMessage('info', `Firmware size: ${hexData.length} bytes`);
+
+      // Upload using STK500 protocol
+      await uploadToArduino(
+        port,
+        hexData,
+        selectedBoard,
+        (progress) => {
+          setUploadProgress(progress.progress);
+          addConsoleMessage(
+            progress.stage === 'error' ? 'error' : 'info',
+            progress.message
+          );
+        }
+      );
+
+      addConsoleMessage('success', '✓ Upload completed successfully!');
+      toast.success('Upload complete! Your Arduino is running the new code.');
+      
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      addConsoleMessage('error', `✗ Upload failed: ${errorMsg}`);
+      toast.error('Upload failed');
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
+    }
   };
 
   const handleNewProject = () => {
