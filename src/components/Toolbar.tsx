@@ -1,5 +1,6 @@
 import React from 'react';
 import { useIDE } from '@/contexts/IDEContext';
+import { useAuth } from '@/hooks/useAuth';
 import { 
   Cpu, 
   Usb, 
@@ -8,7 +9,11 @@ import {
   Save,
   FolderOpen,
   FilePlus,
-  AlertCircle
+  AlertCircle,
+  Cloud,
+  CloudOff,
+  LogOut,
+  RefreshCw
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -38,16 +43,26 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { ARDUINO_BOARDS, isWebSerialSupported, requestSerialPort } from '@/lib/webserial';
+import { compileArduinoCode } from '@/lib/cloud-storage';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
+import { AuthDialog } from './AuthDialog';
 
 interface ToolbarProps {
   onSave: () => void;
   onNewProject: (name: string) => void;
   onOpenProject: (id: string) => void;
+  onSyncToCloud?: () => void;
+  onLoadFromCloud?: () => void;
 }
 
-const Toolbar: React.FC<ToolbarProps> = ({ onSave, onNewProject, onOpenProject }) => {
+const Toolbar: React.FC<ToolbarProps> = ({ 
+  onSave, 
+  onNewProject, 
+  onOpenProject,
+  onSyncToCloud,
+  onLoadFromCloud 
+}) => {
   const { 
     selectedBoard, 
     setSelectedBoard,
@@ -60,12 +75,17 @@ const Toolbar: React.FC<ToolbarProps> = ({ onSave, onNewProject, onOpenProject }
     currentProject,
     projects,
     loadProjects,
-    addConsoleMessage
+    addConsoleMessage,
+    generatedCode
   } = useIDE();
+
+  const { user, isAuthenticated, signOut, loading: authLoading } = useAuth();
 
   const [newProjectName, setNewProjectName] = React.useState('');
   const [showNewDialog, setShowNewDialog] = React.useState(false);
   const [showNoSerialDialog, setShowNoSerialDialog] = React.useState(false);
+  const [showAuthDialog, setShowAuthDialog] = React.useState(false);
+  const [isSyncing, setIsSyncing] = React.useState(false);
 
   React.useEffect(() => {
     loadProjects();
@@ -90,22 +110,32 @@ const Toolbar: React.FC<ToolbarProps> = ({ onSave, onNewProject, onOpenProject }
     }
   };
 
-  const handleBuild = () => {
+  const handleBuild = async () => {
     addConsoleMessage('info', 'Starting build...');
     setIsUploading(true);
-    let progress = 0;
-    
-    // Simulate build process (in real implementation, this would call backend)
-    const interval = setInterval(() => {
-      progress += 10;
-      setUploadProgress(progress);
-      if (progress >= 100) {
-        clearInterval(interval);
-        setIsUploading(false);
+    setUploadProgress(10);
+
+    try {
+      const result = await compileArduinoCode(generatedCode, selectedBoard.fqbn);
+      
+      setUploadProgress(100);
+      
+      if (result.success) {
         addConsoleMessage('success', 'Build completed successfully!');
+        if (result.output) {
+          addConsoleMessage('info', result.output);
+        }
         toast.success('Build completed');
+      } else {
+        addConsoleMessage('error', result.error || 'Build failed');
+        toast.error('Build failed');
       }
-    }, 300);
+    } catch (error) {
+      addConsoleMessage('error', `Build error: ${error}`);
+      toast.error('Build failed');
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const handleUpload = () => {
@@ -119,7 +149,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onSave, onNewProject, onOpenProject }
     setIsUploading(true);
     let progress = 0;
     
-    // Simulate upload process
+    // Simulate upload process (would use HEX from compilation in production)
     const interval = setInterval(() => {
       progress += 5;
       setUploadProgress(progress);
@@ -140,6 +170,41 @@ const Toolbar: React.FC<ToolbarProps> = ({ onSave, onNewProject, onOpenProject }
     onNewProject(newProjectName);
     setNewProjectName('');
     setShowNewDialog(false);
+  };
+
+  const handleCloudSync = async () => {
+    if (!isAuthenticated) {
+      setShowAuthDialog(true);
+      return;
+    }
+    
+    setIsSyncing(true);
+    try {
+      if (onSyncToCloud) {
+        await onSyncToCloud();
+        toast.success('Project synced to cloud');
+      }
+    } catch (error) {
+      toast.error('Failed to sync project');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleLoadFromCloud = async () => {
+    if (!isAuthenticated) {
+      setShowAuthDialog(true);
+      return;
+    }
+    
+    if (onLoadFromCloud) {
+      onLoadFromCloud();
+    }
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    toast.success('Signed out');
   };
 
   return (
@@ -215,6 +280,10 @@ const Toolbar: React.FC<ToolbarProps> = ({ onSave, onNewProject, onOpenProject }
                 ))
               )}
               <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleLoadFromCloud}>
+                <Cloud className="w-4 h-4 mr-2" />
+                Load from Cloud
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => document.getElementById('import-file')?.click()}>
                 Import from file...
               </DropdownMenuItem>
@@ -226,7 +295,6 @@ const Toolbar: React.FC<ToolbarProps> = ({ onSave, onNewProject, onOpenProject }
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   if (file) {
-                    // Handle import
                     addConsoleMessage('info', `Importing ${file.name}...`);
                   }
                 }}
@@ -239,6 +307,21 @@ const Toolbar: React.FC<ToolbarProps> = ({ onSave, onNewProject, onOpenProject }
             Save
           </Button>
 
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={handleCloudSync} 
+            className="gap-1.5"
+            disabled={isSyncing}
+          >
+            {isSyncing ? (
+              <RefreshCw className="w-4 h-4 animate-spin" />
+            ) : (
+              <Cloud className="w-4 h-4" />
+            )}
+            Sync
+          </Button>
+
           {currentProject && (
             <span className="text-sm text-muted-foreground px-2 py-1 bg-secondary rounded">
               {currentProject.name}
@@ -247,6 +330,36 @@ const Toolbar: React.FC<ToolbarProps> = ({ onSave, onNewProject, onOpenProject }
         </div>
 
         <div className="flex items-center gap-3">
+          {/* Auth status */}
+          {!authLoading && (
+            isAuthenticated ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="gap-1.5">
+                    <Cloud className="w-4 h-4 text-primary" />
+                    <span className="text-xs truncate max-w-24">{user?.email}</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={handleSignOut}>
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Sign Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setShowAuthDialog(true)}
+                className="gap-1.5"
+              >
+                <CloudOff className="w-4 h-4" />
+                Sign In
+              </Button>
+            )
+          )}
+
           {/* Board selector */}
           <Select
             value={selectedBoard.fqbn}
@@ -351,6 +464,9 @@ const Toolbar: React.FC<ToolbarProps> = ({ onSave, onNewProject, onOpenProject }
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Auth dialog */}
+      <AuthDialog open={showAuthDialog} onOpenChange={setShowAuthDialog} />
     </>
   );
 };

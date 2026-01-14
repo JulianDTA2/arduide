@@ -14,7 +14,71 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      project_versions: {
+        Row: {
+          blockly_xml: string
+          created_at: string
+          generated_code: string
+          id: string
+          project_id: string
+        }
+        Insert: {
+          blockly_xml: string
+          created_at?: string
+          generated_code: string
+          id?: string
+          project_id: string
+        }
+        Update: {
+          blockly_xml?: string
+          created_at?: string
+          generated_code?: string
+          id?: string
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_versions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      projects: {
+        Row: {
+          blockly_xml: string
+          board: string
+          created_at: string
+          generated_code: string
+          id: string
+          name: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          blockly_xml?: string
+          board?: string
+          created_at?: string
+          generated_code?: string
+          id?: string
+          name: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          blockly_xml?: string
+          board?: string
+          created_at?: string
+          generated_code?: string
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

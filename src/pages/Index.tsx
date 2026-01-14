@@ -9,6 +9,14 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Code, Terminal, Radio, GripVertical } from 'lucide-react';
 import * as Blockly from 'blockly';
 import { motion } from 'framer-motion';
+import { useAuth } from '@/hooks/useAuth';
+import { 
+  syncProjectToCloud, 
+  getAllCloudProjects, 
+  getCloudProject,
+  type CloudProject 
+} from '@/lib/cloud-storage';
+import { toast } from 'sonner';
 
 const IDEContent: React.FC = () => {
   const { 
@@ -19,8 +27,12 @@ const IDEContent: React.FC = () => {
     currentProject,
     openProject,
     createNewProject,
-    addConsoleMessage
+    addConsoleMessage,
+    selectedBoard
   } = useIDE();
+  
+  const { isAuthenticated } = useAuth();
+  const [cloudProjectId, setCloudProjectId] = useState<string | undefined>();
 
   const [splitPosition, setSplitPosition] = useState(60); // percentage
   const workspaceRef = useRef<Blockly.WorkspaceSvg | null>(null);
@@ -68,6 +80,58 @@ const IDEContent: React.FC = () => {
     // Reload workspace with project XML
     addConsoleMessage('info', 'Loading project workspace...');
   }, [openProject, addConsoleMessage]);
+
+  // Cloud sync functions
+  const handleSyncToCloud = useCallback(async () => {
+    if (!isAuthenticated) {
+      toast.error('Please sign in to sync to cloud');
+      return;
+    }
+
+    const xml = getWorkspaceXml();
+    const project = await syncProjectToCloud(
+      {
+        name: currentProject?.name || 'Untitled Project',
+        blocklyXml: xml,
+        generatedCode,
+        board: selectedBoard.fqbn,
+      },
+      cloudProjectId
+    );
+
+    if (project) {
+      setCloudProjectId(project.id);
+      addConsoleMessage('success', 'Project synced to cloud');
+    } else {
+      addConsoleMessage('error', 'Failed to sync project to cloud');
+    }
+  }, [isAuthenticated, currentProject, generatedCode, selectedBoard, cloudProjectId, getWorkspaceXml, addConsoleMessage]);
+
+  const handleLoadFromCloud = useCallback(async () => {
+    if (!isAuthenticated) {
+      toast.error('Please sign in to load from cloud');
+      return;
+    }
+
+    const cloudProjects = await getAllCloudProjects();
+    if (cloudProjects.length === 0) {
+      toast.info('No cloud projects found');
+      return;
+    }
+
+    // Load the most recent cloud project
+    const latestProject = cloudProjects[0];
+    setCloudProjectId(latestProject.id);
+    
+    // Create a local project from cloud data
+    await createNewProject(
+      latestProject.name,
+      latestProject.blockly_xml,
+      latestProject.generated_code
+    );
+    
+    addConsoleMessage('success', `Loaded cloud project: ${latestProject.name}`);
+  }, [isAuthenticated, createNewProject, addConsoleMessage]);
 
   // Drag to resize panels
   const handleMouseDown = () => {
@@ -117,6 +181,8 @@ const IDEContent: React.FC = () => {
         onSave={handleSave}
         onNewProject={handleNewProject}
         onOpenProject={handleOpenProject}
+        onSyncToCloud={handleSyncToCloud}
+        onLoadFromCloud={handleLoadFromCloud}
       />
       
       <div 
