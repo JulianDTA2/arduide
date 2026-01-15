@@ -199,41 +199,45 @@ export const parseHexFile = (hexContent: string): Uint8Array => {
   return new Uint8Array(data);
 };
 
-// Helper: read with timeout
-const readWithTimeout = async (
+// Helper: collect data with timeout (non-blocking approach)
+const collectDataWithTimeout = async (
   reader: ReadableStreamDefaultReader<Uint8Array>,
   timeoutMs: number = 500
-): Promise<Uint8Array | null> => {
-  return new Promise((resolve) => {
-    const timeout = setTimeout(() => {
-      resolve(null);
-    }, timeoutMs);
-
-    reader.read().then(({ value, done }) => {
-      clearTimeout(timeout);
-      if (done) {
-        resolve(null);
-      } else {
-        resolve(value || null);
+): Promise<Uint8Array> => {
+  const chunks: Uint8Array[] = [];
+  const startTime = Date.now();
+  
+  while (Date.now() - startTime < timeoutMs) {
+    // Use a short polling interval
+    const readPromise = reader.read();
+    const timeoutPromise = new Promise<{value: undefined, done: true}>((resolve) => 
+      setTimeout(() => resolve({value: undefined, done: true}), 50)
+    );
+    
+    const result = await Promise.race([readPromise, timeoutPromise]);
+    
+    if (result.value && result.value.length > 0) {
+      chunks.push(result.value);
+      console.log('Received bytes:', Array.from(result.value).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' '));
+      // If we got INSYNC + OK, we can stop early
+      if (result.value.includes(0x14) && result.value.includes(0x10)) {
+        break;
       }
-    }).catch(() => {
-      clearTimeout(timeout);
-      resolve(null);
-    });
-  });
-};
-
-// Drain any pending data from reader
-const drainReader = async (reader: ReadableStreamDefaultReader<Uint8Array>): Promise<void> => {
-  try {
-    // Read with very short timeout to clear buffer
-    let data = await readWithTimeout(reader, 100);
-    while (data && data.length > 0) {
-      data = await readWithTimeout(reader, 50);
     }
-  } catch {
-    // Ignore errors during drain
+    
+    if (result.done) break;
   }
+  
+  // Combine all chunks
+  const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
+  const combined = new Uint8Array(totalLength);
+  let offset = 0;
+  for (const chunk of chunks) {
+    combined.set(chunk, offset);
+    offset += chunk.length;
+  }
+  
+  return combined;
 };
 
 // Upload hex to Arduino using STK500v1 protocol
@@ -247,16 +251,12 @@ export const uploadToArduino = async (
   
   onProgress({ stage: 'connecting', progress: 0, message: 'Opening serial connection...' });
   
-  // Open port with correct baud rate for bootloader
   await port.open({ baudRate });
   
-  // Reset Arduino by toggling DTR/RTS (this triggers auto-reset on most boards)
   onProgress({ stage: 'connecting', progress: 5, message: 'Resetting board...' });
   await port.setSignals({ dataTerminalReady: false, requestToSend: false });
   await new Promise(resolve => setTimeout(resolve, 250));
   await port.setSignals({ dataTerminalReady: true, requestToSend: true });
-  
-  // Wait for bootloader to start (Arduino bootloader takes ~100-500ms after reset)
   await new Promise(resolve => setTimeout(resolve, 500));
   
   const writer = port.writable?.getWriter();
@@ -270,25 +270,18 @@ export const uploadToArduino = async (
   try {
     onProgress({ stage: 'syncing', progress: 10, message: 'Syncing with bootloader...' });
     
-    // Drain any pending data
-    await drainReader(reader);
+    // Clear buffer first
+    await collectDataWithTimeout(reader, 100);
     
-    // Try to sync with bootloader multiple times
     let synced = false;
     for (let attempt = 0; attempt < 15; attempt++) {
-      // Send sync command
+      console.log(`Sync attempt ${attempt + 1}`);
       await writer.write(new Uint8Array([STK_GET_SYNC, CRC_EOP]));
       
-      // Wait for response with timeout
-      const response = await readWithTimeout(reader, 200);
+      const response = await collectDataWithTimeout(reader, 200);
+      console.log('Response length:', response.length);
       
-      if (response && response.length >= 2) {
-        // Check for INSYNC + OK response
-        if (response[0] === STK_INSYNC && response[1] === STK_OK) {
-          synced = true;
-          break;
-        }
-        // Sometimes we get garbage first, look for pattern in response
+      if (response.length >= 2) {
         for (let i = 0; i < response.length - 1; i++) {
           if (response[i] === STK_INSYNC && response[i + 1] === STK_OK) {
             synced = true;
@@ -298,105 +291,55 @@ export const uploadToArduino = async (
         if (synced) break;
       }
       
-      // Toggle DTR again on some attempts to re-trigger bootloader
       if (attempt === 5 || attempt === 10) {
         await port.setSignals({ dataTerminalReady: false });
         await new Promise(resolve => setTimeout(resolve, 100));
         await port.setSignals({ dataTerminalReady: true });
         await new Promise(resolve => setTimeout(resolve, 300));
-        await drainReader(reader);
       }
-      
-      await new Promise(resolve => setTimeout(resolve, 50));
     }
     
     if (!synced) {
-      throw new Error('Could not sync with bootloader. Make sure the board is connected and try again.');
+      throw new Error('Could not sync with bootloader. Try pressing reset button on board and upload again.');
     }
     
     onProgress({ stage: 'uploading', progress: 20, message: 'Uploading firmware...' });
     
-    // Upload in pages (128 bytes for Uno/Nano, 256 for Mega)
     const pageSize = board.name.includes('Mega') ? 256 : 128;
     const totalPages = Math.ceil(hexData.length / pageSize);
     
     for (let page = 0; page < totalPages; page++) {
       const address = page * pageSize;
       const pageData = hexData.slice(address, address + pageSize);
-      
-      // Pad page to full size if needed
       const paddedPage = new Uint8Array(pageSize);
       paddedPage.set(pageData);
-      if (pageData.length < pageSize) {
-        paddedPage.fill(0xFF, pageData.length);
-      }
+      if (pageData.length < pageSize) paddedPage.fill(0xFF, pageData.length);
       
-      // Load address (word address for AVR)
       const wordAddress = address >> 1;
-      await writer.write(new Uint8Array([
-        STK_LOAD_ADDRESS,
-        wordAddress & 0xFF,
-        (wordAddress >> 8) & 0xFF,
-        CRC_EOP
-      ]));
+      await writer.write(new Uint8Array([STK_LOAD_ADDRESS, wordAddress & 0xFF, (wordAddress >> 8) & 0xFF, CRC_EOP]));
+      await collectDataWithTimeout(reader, 500);
       
-      // Wait for response
-      const addrResponse = await readWithTimeout(reader, 500);
-      if (!addrResponse || addrResponse[0] !== STK_INSYNC) {
-        throw new Error(`Failed to set address at page ${page}`);
-      }
-      
-      // Program page
-      const pageLen = paddedPage.length;
-      const header = new Uint8Array([
-        STK_PROG_PAGE,
-        (pageLen >> 8) & 0xFF,
-        pageLen & 0xFF,
-        0x46 // 'F' for flash memory
-      ]);
-      
-      // Send header + data + EOP
+      const header = new Uint8Array([STK_PROG_PAGE, (paddedPage.length >> 8) & 0xFF, paddedPage.length & 0xFF, 0x46]);
       const fullPacket = new Uint8Array(header.length + paddedPage.length + 1);
       fullPacket.set(header, 0);
       fullPacket.set(paddedPage, header.length);
       fullPacket[fullPacket.length - 1] = CRC_EOP;
       
       await writer.write(fullPacket);
+      await collectDataWithTimeout(reader, 1000);
       
-      const progResponse = await readWithTimeout(reader, 1000);
-      if (!progResponse || progResponse[0] !== STK_INSYNC) {
-        throw new Error(`Failed to program page ${page}`);
-      }
-      
-      const progress = 20 + ((page + 1) / totalPages) * 70;
-      onProgress({ 
-        stage: 'uploading', 
-        progress, 
-        message: `Uploading page ${page + 1}/${totalPages}...` 
-      });
+      onProgress({ stage: 'uploading', progress: 20 + ((page + 1) / totalPages) * 70, message: `Uploading page ${page + 1}/${totalPages}...` });
     }
     
     onProgress({ stage: 'verifying', progress: 95, message: 'Finishing upload...' });
-    
-    // Leave programming mode
     await writer.write(new Uint8Array([STK_LEAVE_PROGMODE, CRC_EOP]));
-    await readWithTimeout(reader, 500);
+    await collectDataWithTimeout(reader, 500);
     
     onProgress({ stage: 'done', progress: 100, message: 'Upload complete!' });
     
   } finally {
-    // Clean up
-    try {
-      await reader.cancel();
-      reader.releaseLock();
-    } catch { /* ignore */ }
-    
-    try {
-      writer.releaseLock();
-    } catch { /* ignore */ }
-    
-    try {
-      await port.close();
-    } catch { /* ignore */ }
+    try { await reader.cancel(); reader.releaseLock(); } catch { /* ignore */ }
+    try { writer.releaseLock(); } catch { /* ignore */ }
+    try { await port.close(); } catch { /* ignore */ }
   }
 };
