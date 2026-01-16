@@ -81,6 +81,7 @@ export interface UploadProgress {
 }
 
 export type UploadProgressCallback = (progress: UploadProgress) => void;
+export type DebugLogCallback = (message: string) => void;
 
 export const parseHexFile = (hexContent: string): Uint8Array => {
   const lines = hexContent.split('\n').filter(line => line.startsWith(':'));
@@ -140,10 +141,11 @@ const collectData = async (
   return new Uint8Array(buffer);
 };
 
-// Simple read with manual timeout
+// Simple read with manual timeout and optional debug callback
 const simpleRead = async (
   reader: ReadableStreamDefaultReader<Uint8Array>,
-  timeoutMs: number
+  timeoutMs: number,
+  onDebug?: DebugLogCallback
 ): Promise<Uint8Array> => {
   const buffer: number[] = [];
   const deadline = Date.now() + timeoutMs;
@@ -165,8 +167,13 @@ const simpleRead = async (
       
       clearTimeout(timeoutId);
 
-      if (result.value) {
+      if (result.value && result.value.length > 0) {
         buffer.push(...result.value);
+        const bytesHex = Array.from(result.value).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ');
+        console.log('[WebSerial] RX:', bytesHex);
+        if (onDebug) {
+          onDebug(`[RX] ${bytesHex}`);
+        }
         if (buffer.includes(STK_INSYNC) && buffer.includes(STK_OK)) {
           break;
         }
@@ -223,14 +230,20 @@ const attemptSyncWithBaud = async (
   port: SerialPort,
   baudRate: number,
   resetVariant: 'standard' | 'ch340' | 'ftdi',
-  onProgress: UploadProgressCallback
+  onProgress: UploadProgressCallback,
+  onDebug?: DebugLogCallback
 ): Promise<{ success: boolean; reader: any; writer: any }> => {
-  console.log(`[WebSerial] Attempting sync at ${baudRate} baud with ${resetVariant} reset`);
+  const logDebug = (msg: string) => {
+    console.log(`[WebSerial] ${msg}`);
+    if (onDebug) onDebug(msg);
+  };
+
+  logDebug(`Intentando sync a ${baudRate} baudios con reset ${resetVariant}`);
   
   try {
     await port.open({ baudRate });
   } catch (e) {
-    console.log('[WebSerial] Failed to open port:', e);
+    logDebug(`Error abriendo puerto: ${e}`);
     return { success: false, reader: null, writer: null };
   }
 
@@ -245,13 +258,14 @@ const attemptSyncWithBaud = async (
   onProgress({ stage: 'connecting', progress: 5, message: `Conectando a ${baudRate} baudios...` });
 
   // Reset the board
+  logDebug(`Ejecutando reset (${resetVariant})...`);
   await resetBoard(port, resetVariant);
 
   // Drain any pending data
-  console.log('[WebSerial] Draining buffer...');
-  const drainData = await simpleRead(reader, 100);
+  logDebug('Limpiando buffer...');
+  const drainData = await simpleRead(reader, 100, onDebug);
   if (drainData.length > 0) {
-    console.log('[WebSerial] Drained:', Array.from(drainData).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' '));
+    logDebug(`Buffer drenado: ${drainData.length} bytes`);
   }
 
   onProgress({ stage: 'syncing', progress: 10, message: 'Sincronizando con bootloader...' });
@@ -262,20 +276,23 @@ const attemptSyncWithBaud = async (
   
   for (let attempt = 0; attempt < maxAttempts && !synced; attempt++) {
     try {
-      console.log(`[WebSerial] Sync attempt ${attempt + 1}/${maxAttempts}`);
+      logDebug(`Sync intento ${attempt + 1}/${maxAttempts} - Enviando [0x30, 0x20]`);
       
       // Send sync command
       await writer.write(new Uint8Array([STK_GET_SYNC, CRC_EOP]));
       
       // Wait for response
-      const response = await simpleRead(reader, 100);
+      const response = await simpleRead(reader, 150, onDebug);
       
-      if (response.length > 0) {
-        console.log('[WebSerial] Response:', Array.from(response).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' '));
+      if (response.length === 0) {
+        logDebug(`Intento ${attempt + 1}: Sin respuesta del bootloader`);
+      } else {
+        const bytesHex = Array.from(response).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ');
+        logDebug(`Intento ${attempt + 1}: Respuesta = ${bytesHex}`);
       }
       
       if (response.includes(STK_INSYNC) && response.includes(STK_OK)) {
-        console.log('[WebSerial] Sync successful!');
+        logDebug('✓ Sincronización exitosa con bootloader!');
         synced = true;
         break;
       }
@@ -285,12 +302,12 @@ const attemptSyncWithBaud = async (
       
       // Try another reset mid-way through attempts
       if (attempt === 5 || attempt === 10) {
-        console.log('[WebSerial] Mid-sync reset');
+        logDebug('Re-intentando reset...');
         await resetBoard(port, resetVariant);
         await new Promise((r) => setTimeout(r, 50));
       }
     } catch (e) {
-      console.log('[WebSerial] Sync attempt error:', e);
+      logDebug(`Error en intento ${attempt + 1}: ${e}`);
     }
   }
 
@@ -310,10 +327,16 @@ export const uploadToArduino = async (
   port: SerialPort,
   hexData: Uint8Array,
   board: ArduinoBoard,
-  onProgress: UploadProgressCallback
+  onProgress: UploadProgressCallback,
+  onDebug?: DebugLogCallback
 ): Promise<void> => {
-  console.log('[WebSerial] Starting upload for', board.name);
-  console.log('[WebSerial] Firmware size:', hexData.length, 'bytes');
+  const logDebug = (msg: string) => {
+    console.log(`[WebSerial] ${msg}`);
+    if (onDebug) onDebug(msg);
+  };
+
+  logDebug(`━━━ Iniciando upload para ${board.name} ━━━`);
+  logDebug(`Tamaño firmware: ${hexData.length} bytes`);
 
   let activeReader: any = null;
   let activeWriter: any = null;
@@ -324,6 +347,8 @@ export const uploadToArduino = async (
     : board.name.includes('Nano') 
       ? [115200, 57600] // New Nano uses 115200, but try 57600 as fallback
       : [board.baudRate];
+
+  logDebug(`Baudios a probar: ${baudRates.join(', ')}`);
 
   // Reset variants to try
   const resetVariants: Array<'standard' | 'ch340' | 'ftdi'> = ['ch340', 'standard', 'ftdi'];
@@ -336,13 +361,13 @@ export const uploadToArduino = async (
     for (const variant of resetVariants) {
       onProgress({ stage: 'connecting', progress: 0, message: `Intentando ${baud} baudios (${variant})...` });
       
-      const result = await attemptSyncWithBaud(port, baud, variant, onProgress);
+      const result = await attemptSyncWithBaud(port, baud, variant, onProgress, onDebug);
       
       if (result.success) {
         activeReader = result.reader;
         activeWriter = result.writer;
         connected = true;
-        console.log(`[WebSerial] Connected with ${baud} baud, ${variant} reset`);
+        logDebug(`✓ Conectado con ${baud} baudios, reset ${variant}`);
         break outerLoop;
       }
       
@@ -352,6 +377,7 @@ export const uploadToArduino = async (
   }
 
   if (!connected || !activeReader || !activeWriter) {
+    logDebug('✗ No se pudo sincronizar con bootloader');
     throw new Error(
       'No se pudo sincronizar con el bootloader. Sugerencias:\n' +
       '1. Desconecta y vuelve a conectar el cable USB\n' +

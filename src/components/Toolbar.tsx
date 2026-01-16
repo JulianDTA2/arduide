@@ -253,6 +253,10 @@ const Toolbar: React.FC<ToolbarProps> = ({
             progress.stage === 'error' ? 'error' : 'info',
             progress.message
           );
+        },
+        (debugMsg) => {
+          // Mostrar bytes del bootloader en la consola IDE
+          addConsoleMessage('info', debugMsg);
         }
       );
 
