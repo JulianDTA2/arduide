@@ -97,133 +97,347 @@ export const parseHexFile = (hexContent: string): Uint8Array => {
   return new Uint8Array(data);
 };
 
-// Lectura optimizada para capturar respuestas fragmentadas
-const readAny = async (reader: ReadableStreamDefaultReader<Uint8Array>, timeout: number): Promise<Uint8Array> => {
-  const chunks: Uint8Array[] = [];
-  const start = Date.now();
-  while (Date.now() - start < timeout) {
-    const read = reader.read();
-    const timer = new Promise<{value: undefined, done: true}>(r => setTimeout(() => r({value: undefined, done: true}), 10)); // Check rápido
-    const { value, done } = await Promise.race([read, timer]);
-    if (value) chunks.push(value);
-    if (done) break;
-    // Si ya tenemos al menos 2 bytes (mínimo para OK+INSYNC), salimos
-    if (chunks.reduce((a,c) => a+c.length, 0) >= 2) break;
+// Polling-based read with timeout - prevents reader from blocking indefinitely
+const collectData = async (
+  port: SerialPort,
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  timeoutMs: number,
+  expectedBytes: number = 2
+): Promise<Uint8Array> => {
+  const buffer: number[] = [];
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    try {
+      // Release and re-acquire reader for each poll cycle
+      reader.releaseLock();
+      const newReader = port.readable?.getReader();
+      if (!newReader) break;
+      reader = newReader;
+
+      const readPromise = reader.read();
+      const timeoutPromise = new Promise<{ value: undefined; done: true }>((resolve) =>
+        setTimeout(() => resolve({ value: undefined, done: true }), 20)
+      );
+
+      const result = await Promise.race([readPromise, timeoutPromise]);
+
+      if (result.value) {
+        buffer.push(...result.value);
+        console.log('[WebSerial] Received:', Array.from(result.value).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' '));
+        // Check for INSYNC + OK
+        if (buffer.includes(STK_INSYNC) && buffer.includes(STK_OK)) {
+          break;
+        }
+        if (buffer.length >= expectedBytes) break;
+      }
+    } catch (e) {
+      // Ignore read errors during polling
+    }
+    await new Promise((r) => setTimeout(r, 5));
   }
-  const total = chunks.reduce((a,c) => a+c.length, 0);
-  const res = new Uint8Array(total);
-  let off = 0;
-  for (const c of chunks) { res.set(c, off); off += c.length; }
-  return res;
+
+  return new Uint8Array(buffer);
 };
 
-const attemptSync = async (port: SerialPort, baudRate: number, onProgress: UploadProgressCallback): Promise<{s: boolean, r: any, w: any}> => {
-  try { await port.open({ baudRate }); } catch (e) { return {s: false, r: null, w: null}; }
-  
-  const w = port.writable?.getWriter();
-  const r = port.readable?.getReader();
-  if (!w || !r) { await port.close(); return {s: false, r: null, w: null}; }
+// Simple read with manual timeout
+const simpleRead = async (
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  timeoutMs: number
+): Promise<Uint8Array> => {
+  const buffer: number[] = [];
+  const deadline = Date.now() + timeoutMs;
 
-  onProgress({ stage: 'connecting', progress: 0, message: `Probando a ${baudRate} baudios...` });
-
-  // === SECUENCIA DE RESET CH340 OPTIMIZADA ===
-  // 1. Estado inicial seguro
-  await port.setSignals({ dataTerminalReady: false, requestToSend: false });
-  await new Promise(resolve => setTimeout(resolve, 50));
-
-  // 2. RESET ACTIVO: Solo DTR True. RTS False (para evitar conflictos en clones raros)
-  await port.setSignals({ dataTerminalReady: true, requestToSend: false });
-  await new Promise(resolve => setTimeout(resolve, 250)); // Pulso sólido
-
-  // 3. SOLTAR RESET
-  await port.setSignals({ dataTerminalReady: false, requestToSend: false });
-  await new Promise(resolve => setTimeout(resolve, 50)); // Pequeña pausa para que el bootloader despierte
-
-  // === BOMBARDEO (SYNC LOOP) ===
-  const start = Date.now();
-  let synced = false;
-  
-  // Intentamos sincronizar durante 1.5 segundos
-  while (Date.now() - start < 1500) {
+  while (Date.now() < deadline) {
     try {
-      await w.write(new Uint8Array([STK_GET_SYNC, CRC_EOP]));
-      // Leemos rápido (50ms)
-      const res = await readAny(r, 50);
-      if (res.includes(STK_INSYNC) && res.includes(STK_OK)) {
+      const timeRemaining = deadline - Date.now();
+      if (timeRemaining <= 0) break;
+
+      const readPromise = reader.read();
+      const timeoutId = setTimeout(() => {}, Math.min(timeRemaining, 50));
+      
+      const result = await Promise.race([
+        readPromise,
+        new Promise<{ value: undefined; done: true }>((resolve) =>
+          setTimeout(() => resolve({ value: undefined, done: true }), 50)
+        ),
+      ]);
+      
+      clearTimeout(timeoutId);
+
+      if (result.value) {
+        buffer.push(...result.value);
+        if (buffer.includes(STK_INSYNC) && buffer.includes(STK_OK)) {
+          break;
+        }
+      }
+      if (result.done) break;
+    } catch {
+      break;
+    }
+  }
+
+  return new Uint8Array(buffer);
+};
+
+const resetBoard = async (port: SerialPort, variant: 'standard' | 'ch340' | 'ftdi'): Promise<void> => {
+  console.log(`[WebSerial] Reset board using ${variant} sequence`);
+  
+  switch (variant) {
+    case 'ch340':
+      // CH340 clones need a specific sequence
+      await port.setSignals({ dataTerminalReady: false, requestToSend: false });
+      await new Promise((r) => setTimeout(r, 100));
+      await port.setSignals({ dataTerminalReady: true, requestToSend: true });
+      await new Promise((r) => setTimeout(r, 50));
+      await port.setSignals({ dataTerminalReady: false, requestToSend: false });
+      await new Promise((r) => setTimeout(r, 100));
+      break;
+      
+    case 'ftdi':
+      // FTDI chips
+      await port.setSignals({ dataTerminalReady: false, requestToSend: false });
+      await new Promise((r) => setTimeout(r, 50));
+      await port.setSignals({ dataTerminalReady: true, requestToSend: false });
+      await new Promise((r) => setTimeout(r, 250));
+      await port.setSignals({ dataTerminalReady: false, requestToSend: false });
+      await new Promise((r) => setTimeout(r, 50));
+      break;
+      
+    case 'standard':
+    default:
+      // Standard Arduino with native USB
+      await port.setSignals({ dataTerminalReady: false, requestToSend: false });
+      await new Promise((r) => setTimeout(r, 50));
+      await port.setSignals({ dataTerminalReady: true, requestToSend: true });
+      await new Promise((r) => setTimeout(r, 100));
+      await port.setSignals({ dataTerminalReady: false, requestToSend: true });
+      await new Promise((r) => setTimeout(r, 50));
+      await port.setSignals({ dataTerminalReady: false, requestToSend: false });
+      await new Promise((r) => setTimeout(r, 50));
+      break;
+  }
+};
+
+const attemptSyncWithBaud = async (
+  port: SerialPort,
+  baudRate: number,
+  resetVariant: 'standard' | 'ch340' | 'ftdi',
+  onProgress: UploadProgressCallback
+): Promise<{ success: boolean; reader: any; writer: any }> => {
+  console.log(`[WebSerial] Attempting sync at ${baudRate} baud with ${resetVariant} reset`);
+  
+  try {
+    await port.open({ baudRate });
+  } catch (e) {
+    console.log('[WebSerial] Failed to open port:', e);
+    return { success: false, reader: null, writer: null };
+  }
+
+  const writer = port.writable?.getWriter();
+  const reader = port.readable?.getReader();
+
+  if (!writer || !reader) {
+    try { await port.close(); } catch {}
+    return { success: false, reader: null, writer: null };
+  }
+
+  onProgress({ stage: 'connecting', progress: 5, message: `Conectando a ${baudRate} baudios...` });
+
+  // Reset the board
+  await resetBoard(port, resetVariant);
+
+  // Drain any pending data
+  console.log('[WebSerial] Draining buffer...');
+  const drainData = await simpleRead(reader, 100);
+  if (drainData.length > 0) {
+    console.log('[WebSerial] Drained:', Array.from(drainData).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' '));
+  }
+
+  onProgress({ stage: 'syncing', progress: 10, message: 'Sincronizando con bootloader...' });
+
+  // Try to sync with bootloader - multiple attempts
+  let synced = false;
+  const maxAttempts = 15;
+  
+  for (let attempt = 0; attempt < maxAttempts && !synced; attempt++) {
+    try {
+      console.log(`[WebSerial] Sync attempt ${attempt + 1}/${maxAttempts}`);
+      
+      // Send sync command
+      await writer.write(new Uint8Array([STK_GET_SYNC, CRC_EOP]));
+      
+      // Wait for response
+      const response = await simpleRead(reader, 100);
+      
+      if (response.length > 0) {
+        console.log('[WebSerial] Response:', Array.from(response).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' '));
+      }
+      
+      if (response.includes(STK_INSYNC) && response.includes(STK_OK)) {
+        console.log('[WebSerial] Sync successful!');
         synced = true;
         break;
       }
-    } catch (e) { break; }
-    // Espera mínima entre intentos para no saturar
-    await new Promise(r => setTimeout(r, 10));
+      
+      // Small delay between attempts
+      await new Promise((r) => setTimeout(r, 30));
+      
+      // Try another reset mid-way through attempts
+      if (attempt === 5 || attempt === 10) {
+        console.log('[WebSerial] Mid-sync reset');
+        await resetBoard(port, resetVariant);
+        await new Promise((r) => setTimeout(r, 50));
+      }
+    } catch (e) {
+      console.log('[WebSerial] Sync attempt error:', e);
+    }
   }
 
-  if (synced) return { s: true, r, w };
-  
-  // Limpieza
-  try { await r.cancel(); r.releaseLock(); } catch {}
-  try { await w.close(); w.releaseLock(); } catch {}
+  if (synced) {
+    return { success: true, reader, writer };
+  }
+
+  // Cleanup on failure
+  try { await reader.cancel(); reader.releaseLock(); } catch {}
+  try { await writer.close(); writer.releaseLock(); } catch {}
   try { await port.close(); } catch {}
-  return { s: false, r: null, w: null };
+  
+  return { success: false, reader: null, writer: null };
 };
 
-export const uploadToArduino = async (port: SerialPort, hexData: Uint8Array, board: ArduinoBoard, onProgress: UploadProgressCallback): Promise<void> => {
-  let activeR, activeW;
+export const uploadToArduino = async (
+  port: SerialPort,
+  hexData: Uint8Array,
+  board: ArduinoBoard,
+  onProgress: UploadProgressCallback
+): Promise<void> => {
+  console.log('[WebSerial] Starting upload for', board.name);
+  console.log('[WebSerial] Firmware size:', hexData.length, 'bytes');
+
+  let activeReader: any = null;
+  let activeWriter: any = null;
+
+  // Determine baud rates to try based on board
+  const baudRates = board.fqbn.includes('atmega328old') 
+    ? [57600] // Old bootloader always uses 57600
+    : board.name.includes('Nano') 
+      ? [115200, 57600] // New Nano uses 115200, but try 57600 as fallback
+      : [board.baudRate];
+
+  // Reset variants to try
+  const resetVariants: Array<'standard' | 'ch340' | 'ftdi'> = ['ch340', 'standard', 'ftdi'];
+
+  // Try all combinations
+  let connected = false;
   
-  // Probar ambas velocidades si es Nano
-  const bauds = board.name.includes("Nano") ? [115200, 57600] : [board.baudRate];
-  
-  for (const baud of bauds) {
-    const res = await attemptSync(port, baud, onProgress);
-    if (res.s) {
-      activeR = res.r;
-      activeW = res.w;
-      break;
+  outerLoop:
+  for (const baud of baudRates) {
+    for (const variant of resetVariants) {
+      onProgress({ stage: 'connecting', progress: 0, message: `Intentando ${baud} baudios (${variant})...` });
+      
+      const result = await attemptSyncWithBaud(port, baud, variant, onProgress);
+      
+      if (result.success) {
+        activeReader = result.reader;
+        activeWriter = result.writer;
+        connected = true;
+        console.log(`[WebSerial] Connected with ${baud} baud, ${variant} reset`);
+        break outerLoop;
+      }
+      
+      // Wait before next attempt
+      await new Promise((r) => setTimeout(r, 300));
     }
-    // Pausa para dar tiempo al driver USB a recuperarse antes de reabrir
-    await new Promise(r => setTimeout(r, 200));
   }
 
-  if (!activeR || !activeW) {
-    throw new Error('No se pudo sincronizar. Intenta presionar el botón RESET manualmente justo cuando veas "Probando...".');
+  if (!connected || !activeReader || !activeWriter) {
+    throw new Error(
+      'No se pudo sincronizar con el bootloader. Sugerencias:\n' +
+      '1. Desconecta y vuelve a conectar el cable USB\n' +
+      '2. Presiona el botón RESET en la placa justo antes de subir\n' +
+      '3. Intenta seleccionar "Arduino Nano (Old Bootloader)" si es un clon'
+    );
   }
 
   try {
-    onProgress({ stage: 'syncing', progress: 20, message: '¡Conectado! Subiendo...' });
+    onProgress({ stage: 'uploading', progress: 20, message: '¡Conectado! Subiendo firmware...' });
 
-    // === CARGA ===
+    // Upload pages
     const pageSize = 128;
     const totalPages = Math.ceil(hexData.length / pageSize);
 
     for (let page = 0; page < totalPages; page++) {
       const addr = page * pageSize;
-      const data = hexData.slice(addr, addr + pageSize);
-      const padded = new Uint8Array(pageSize);
-      padded.set(data);
-      if (data.length < pageSize) padded.fill(0xFF, data.length);
+      const pageData = hexData.slice(addr, addr + pageSize);
+      
+      // Pad page to full size
+      const paddedData = new Uint8Array(pageSize);
+      paddedData.set(pageData);
+      if (pageData.length < pageSize) {
+        paddedData.fill(0xFF, pageData.length);
+      }
 
+      // Set address (word address = byte address / 2)
       const wordAddr = addr >> 1;
-      await activeW.write(new Uint8Array([STK_LOAD_ADDRESS, wordAddr & 0xFF, (wordAddr >> 8) & 0xFF, CRC_EOP]));
-      await readAny(activeR, 100);
+      const addrCmd = new Uint8Array([
+        STK_LOAD_ADDRESS,
+        wordAddr & 0xFF,
+        (wordAddr >> 8) & 0xFF,
+        CRC_EOP,
+      ]);
+      
+      await activeWriter.write(addrCmd);
+      const addrResp = await simpleRead(activeReader, 150);
+      
+      if (!addrResp.includes(STK_INSYNC)) {
+        console.warn('[WebSerial] Address command did not get INSYNC');
+      }
 
-      const header = new Uint8Array([STK_PROG_PAGE, (padded.length >> 8) & 0xFF, padded.length & 0xFF, 0x46]);
-      const pkt = new Uint8Array(header.length + padded.length + 1);
-      pkt.set(header, 0); pkt.set(padded, header.length); pkt[pkt.length-1] = CRC_EOP;
+      // Program page
+      const progCmd = new Uint8Array([
+        STK_PROG_PAGE,
+        (paddedData.length >> 8) & 0xFF,
+        paddedData.length & 0xFF,
+        0x46, // 'F' for flash
+      ]);
       
-      await activeW.write(pkt);
-      await readAny(activeR, 500);
+      const fullPacket = new Uint8Array(progCmd.length + paddedData.length + 1);
+      fullPacket.set(progCmd, 0);
+      fullPacket.set(paddedData, progCmd.length);
+      fullPacket[fullPacket.length - 1] = CRC_EOP;
+
+      await activeWriter.write(fullPacket);
+      const progResp = await simpleRead(activeReader, 500);
       
-      onProgress({ stage: 'uploading', progress: 20 + ((page+1)/totalPages)*70, message: `Subiendo ${Math.round(((page+1)/totalPages)*100)}%` });
+      if (!progResp.includes(STK_INSYNC)) {
+        console.warn(`[WebSerial] Page ${page} did not get INSYNC`);
+      }
+
+      const progress = 20 + ((page + 1) / totalPages) * 70;
+      onProgress({
+        stage: 'uploading',
+        progress,
+        message: `Subiendo... ${Math.round(((page + 1) / totalPages) * 100)}%`,
+      });
     }
 
+    // Leave programming mode
     onProgress({ stage: 'verifying', progress: 95, message: 'Finalizando...' });
-    await activeW.write(new Uint8Array([STK_LEAVE_PROGMODE, CRC_EOP]));
-    await readAny(activeR, 100);
-    onProgress({ stage: 'done', progress: 100, message: '¡Carga Exitosa!' });
+    await activeWriter.write(new Uint8Array([STK_LEAVE_PROGMODE, CRC_EOP]));
+    await simpleRead(activeReader, 100);
+
+    onProgress({ stage: 'done', progress: 100, message: '¡Carga exitosa!' });
+    console.log('[WebSerial] Upload complete!');
 
   } finally {
-    if (activeR) { try { await activeR.cancel(); activeR.releaseLock(); } catch {} }
-    if (activeW) { try { await activeW.close(); activeW.releaseLock(); } catch {} }
+    // Cleanup
+    if (activeReader) {
+      try { await activeReader.cancel(); activeReader.releaseLock(); } catch {}
+    }
+    if (activeWriter) {
+      try { await activeWriter.close(); activeWriter.releaseLock(); } catch {}
+    }
     try { await port.close(); } catch {}
   }
 };
