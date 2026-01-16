@@ -93,6 +93,16 @@ const Toolbar: React.FC<ToolbarProps> = ({
     loadProjects();
   }, [loadProjects]);
 
+  // --- CORRECCIÓN CRÍTICA ---
+  // Este efecto borra la compilación guardada cada vez que cambias una letra en el código.
+  // Esto obliga al botón Upload a recompilar con tus cambios nuevos.
+  React.useEffect(() => {
+    if (compiledHex) {
+      setCompiledHex(null);
+    }
+  }, [generatedCode]);
+  // ---------------------------
+
   const handleConnect = async () => {
     if (!isWebSerialSupported()) {
       setShowNoSerialDialog(true);
@@ -117,7 +127,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
     addConsoleMessage('info', `Board: ${selectedBoard.name} (${selectedBoard.fqbn})`);
     setIsUploading(true);
     setUploadProgress(10);
-    setActiveTab('console'); // Switch to console to show output
+    setActiveTab('console');
 
     try {
       setUploadProgress(30);
@@ -125,13 +135,11 @@ const Toolbar: React.FC<ToolbarProps> = ({
       setUploadProgress(90);
       
       if (result.success) {
-        // Store HEX for upload
         if (result.hex) {
           setCompiledHex(result.hex);
           addConsoleMessage('success', '✓ Compilation successful! HEX file ready.');
         }
         if (result.output) {
-          // Split output into lines for better display
           result.output.split('\n').forEach(line => {
             if (line.trim()) {
               addConsoleMessage('info', line);
@@ -165,17 +173,18 @@ const Toolbar: React.FC<ToolbarProps> = ({
   };
 
   const handleUpload = async () => {
-    if (!isConnected) {
-      toast.error('Please connect a board first');
-      addConsoleMessage('warning', 'No board connected. Click "Connect" to select your Arduino.');
-      return;
+    // 1. Cerrar conexión serial si existe (para evitar conflicto de puerto)
+    if (isConnected) {
+      addConsoleMessage('info', 'Closing serial connection before upload...');
+      setIsConnected(false);
+      await new Promise(resolve => setTimeout(resolve, 500));
     }
 
     let hexToUpload = compiledHex;
 
+    // 2. Si no hay HEX o el código cambió (gracias al useEffect), compilamos de nuevo
     if (!hexToUpload) {
-      // If no HEX, run build first and get the result directly
-      addConsoleMessage('info', 'No compiled code. Building first...');
+      addConsoleMessage('info', 'Source changed or no binary. Building first...');
       addConsoleMessage('info', '━━━ Starting compilation ━━━');
       addConsoleMessage('info', `Board: ${selectedBoard.name} (${selectedBoard.fqbn})`);
       setIsUploading(true);
@@ -184,6 +193,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
 
       try {
         setUploadProgress(30);
+        // Compilamos el generatedCode ACTUAL
         const result = await compileArduinoCode(generatedCode, selectedBoard.fqbn);
         setUploadProgress(90);
         
@@ -223,7 +233,6 @@ const Toolbar: React.FC<ToolbarProps> = ({
     setActiveTab('console');
 
     try {
-      // Request a new port for upload (user may need to reselect)
       const port = await requestSerialPort();
       if (!port) {
         addConsoleMessage('warning', 'Upload cancelled - no port selected');
@@ -231,11 +240,9 @@ const Toolbar: React.FC<ToolbarProps> = ({
         return;
       }
 
-      // Parse HEX file
       const hexData = parseHexFile(hexToUpload);
       addConsoleMessage('info', `Firmware size: ${hexData.length} bytes`);
 
-      // Upload using STK500 protocol
       await uploadToArduino(
         port,
         hexData,
@@ -311,7 +318,6 @@ const Toolbar: React.FC<ToolbarProps> = ({
     <>
       <div className="flex items-center justify-between px-4 py-2 bg-card border-b border-border">
         <div className="flex items-center gap-3">
-          {/* Logo */}
           <div className="flex items-center gap-2 mr-4">
             <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center glow-teal-sm">
               <Cpu className="w-5 h-5 text-primary-foreground" />
@@ -319,7 +325,6 @@ const Toolbar: React.FC<ToolbarProps> = ({
             <span className="text-lg font-bold text-foreground">Arduino Web IDE</span>
           </div>
 
-          {/* File operations */}
           <Dialog open={showNewDialog} onOpenChange={setShowNewDialog}>
             <DialogTrigger asChild>
               <Button variant="ghost" size="sm" className="gap-1.5">
@@ -430,7 +435,6 @@ const Toolbar: React.FC<ToolbarProps> = ({
         </div>
 
         <div className="flex items-center gap-3">
-          {/* Auth status */}
           {!authLoading && (
             isAuthenticated ? (
               <DropdownMenu>
@@ -460,7 +464,6 @@ const Toolbar: React.FC<ToolbarProps> = ({
             )
           )}
 
-          {/* Board selector */}
           <Select
             value={selectedBoard.fqbn}
             onValueChange={(value) => {
@@ -480,7 +483,6 @@ const Toolbar: React.FC<ToolbarProps> = ({
             </SelectContent>
           </Select>
 
-          {/* Connection status */}
           <Button
             variant={isConnected ? "outline" : "secondary"}
             size="sm"
@@ -492,7 +494,6 @@ const Toolbar: React.FC<ToolbarProps> = ({
             {isConnected ? 'Connected' : 'Connect'}
           </Button>
 
-          {/* Build button */}
           <Button
             variant="secondary"
             size="sm"
@@ -504,7 +505,6 @@ const Toolbar: React.FC<ToolbarProps> = ({
             Build
           </Button>
 
-          {/* Upload button */}
           <Button
             size="sm"
             onClick={handleUpload}
@@ -517,7 +517,6 @@ const Toolbar: React.FC<ToolbarProps> = ({
         </div>
       </div>
 
-      {/* Upload progress bar */}
       <AnimatePresence>
         {isUploading && (
           <motion.div
@@ -538,7 +537,6 @@ const Toolbar: React.FC<ToolbarProps> = ({
         )}
       </AnimatePresence>
 
-      {/* WebSerial not supported dialog */}
       <Dialog open={showNoSerialDialog} onOpenChange={setShowNoSerialDialog}>
         <DialogContent>
           <DialogHeader>
@@ -565,7 +563,6 @@ const Toolbar: React.FC<ToolbarProps> = ({
         </DialogContent>
       </Dialog>
 
-      {/* Auth dialog */}
       <AuthDialog open={showAuthDialog} onOpenChange={setShowAuthDialog} />
     </>
   );

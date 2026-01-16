@@ -48,12 +48,14 @@ const SerialMonitor: React.FC = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const readLoopRef = useRef<boolean>(false);
 
+  // Auto-scroll effect
   useEffect(() => {
     if (autoScroll && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [serialMessages, autoScroll]);
 
+  // Read loop function
   const startReadLoop = useCallback(async () => {
     if (!connectionRef.current?.reader) return;
     
@@ -77,6 +79,7 @@ const SerialMonitor: React.FC = () => {
     }
   }, [addSerialMessage]);
 
+  // Connect function
   const handleConnect = async () => {
     if (!isWebSerialSupported()) {
       toast.error('WebSerial is not supported in this browser. Use Chrome or Edge.');
@@ -103,7 +106,8 @@ const SerialMonitor: React.FC = () => {
     }
   };
 
-  const handleDisconnect = async () => {
+  // Disconnect function - Wrapped in useCallback for dependency safety
+  const handleDisconnect = useCallback(async () => {
     readLoopRef.current = false;
     
     if (connectionRef.current) {
@@ -112,11 +116,15 @@ const SerialMonitor: React.FC = () => {
     }
     
     setIsMonitorConnected(false);
-    setIsConnected(false);
+    // Solo actualizamos el estado global si somos nosotros los que desconectamos manualmente
+    // Pero en el caso de limpieza automática, esto es redundante pero seguro.
+    setIsConnected(false); 
+    
     addConsoleMessage('info', 'Serial monitor disconnected');
     toast.info('Serial monitor disconnected');
-  };
+  }, [setIsConnected, addConsoleMessage]);
 
+  // Send function
   const handleSend = async () => {
     if (!inputValue.trim() || !connectionRef.current) return;
 
@@ -146,6 +154,17 @@ const SerialMonitor: React.FC = () => {
       }
     };
   }, []);
+
+  // --- NUEVO: Efecto crítico para liberar el puerto cuando el Toolbar lo pide ---
+  useEffect(() => {
+    // Si el estado global dice "Desconectado" pero el monitor sigue conectado físicamente,
+    // significa que Toolbar forzó la desconexión para subir código.
+    // Debemos soltar el puerto inmediatamente.
+    if (!ideConnected && isMonitorConnected) {
+      console.log("Forzando desconexión del monitor serie por solicitud externa...");
+      handleDisconnect();
+    }
+  }, [ideConnected, isMonitorConnected, handleDisconnect]);
 
   return (
     <div className="flex flex-col h-full">

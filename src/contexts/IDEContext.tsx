@@ -11,6 +11,7 @@ import {
 } from '@/lib/storage';
 import { ArduinoBoard, ARDUINO_BOARDS } from '@/lib/webserial';
 
+// Definiciones de tipos para mensajes
 export interface ConsoleMessage {
   id: string;
   type: 'info' | 'warning' | 'error' | 'success';
@@ -26,21 +27,19 @@ export interface SerialMessage {
 }
 
 interface IDEContextType {
-  // Project state
+  // --- 1. GESTIÓN DE PROYECTOS (Necesario para Toolbar) ---
   currentProject: Project | null;
   projects: Project[];
   versions: ProjectVersion[];
   isLoading: boolean;
   
-  // Code state
+  // --- 2. GESTIÓN DE CÓDIGO (Editable) ---
   generatedCode: string;
   setGeneratedCode: (code: string) => void;
   
-  // Board state
+  // --- 3. HARDWARE Y CONEXIÓN ---
   selectedBoard: ArduinoBoard;
   setSelectedBoard: (board: ArduinoBoard) => void;
-  
-  // Connection state
   isConnected: boolean;
   setIsConnected: (connected: boolean) => void;
   isUploading: boolean;
@@ -48,19 +47,17 @@ interface IDEContextType {
   uploadProgress: number;
   setUploadProgress: (progress: number) => void;
   
-  // Console
+  // --- 4. CONSOLA Y SERIAL ---
   consoleMessages: ConsoleMessage[];
   addConsoleMessage: (type: ConsoleMessage['type'], message: string) => void;
   clearConsole: () => void;
-  
-  // Serial monitor
   serialMessages: SerialMessage[];
   addSerialMessage: (type: SerialMessage['type'], content: string) => void;
   clearSerialMessages: () => void;
   serialBaudRate: number;
   setSerialBaudRate: (rate: number) => void;
   
-  // Project actions
+  // --- 5. ACCIONES (Load, Save, etc.) ---
   loadProjects: () => Promise<void>;
   createNewProject: (name: string, blocklyXml: string, code: string) => Promise<Project>;
   openProject: (id: string) => Promise<void>;
@@ -68,7 +65,7 @@ interface IDEContextType {
   deleteCurrentProject: () => Promise<void>;
   loadVersions: () => Promise<void>;
   
-  // Active tab
+  // --- 6. PESTAÑAS ---
   activeTab: 'code' | 'console' | 'serial';
   setActiveTab: (tab: 'code' | 'console' | 'serial') => void;
 }
@@ -88,14 +85,25 @@ interface IDEProviderProps {
 }
 
 export const IDEProvider: React.FC<IDEProviderProps> = ({ children }) => {
+  // --- ESTADOS ---
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [versions, setVersions] = useState<ProjectVersion[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   
-  const [generatedCode, setGeneratedCode] = useState('');
-  const [selectedBoard, setSelectedBoard] = useState<ArduinoBoard>(ARDUINO_BOARDS[0]);
-  
+  // CÓDIGO POR DEFECTO: Pin 13 (LED integrado) para verificar funcionalidad
+  const [generatedCode, setGeneratedCode] = useState(`void setup() {
+  pinMode(13, OUTPUT);
+}
+
+void loop() {
+  digitalWrite(13, HIGH);
+  delay(1000);
+  digitalWrite(13, LOW);
+  delay(1000);
+}`);
+
+  const [selectedBoard, setSelectedBoard] = useState<ArduinoBoard>(ARDUINO_BOARDS[1]); // Nano Default
   const [isConnected, setIsConnected] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -103,9 +111,9 @@ export const IDEProvider: React.FC<IDEProviderProps> = ({ children }) => {
   const [consoleMessages, setConsoleMessages] = useState<ConsoleMessage[]>([]);
   const [serialMessages, setSerialMessages] = useState<SerialMessage[]>([]);
   const [serialBaudRate, setSerialBaudRate] = useState(9600);
-  
   const [activeTab, setActiveTab] = useState<'code' | 'console' | 'serial'>('code');
 
+  // --- FUNCIONES DE CONSOLA/SERIAL ---
   const addConsoleMessage = useCallback((type: ConsoleMessage['type'], message: string) => {
     setConsoleMessages(prev => [...prev, {
       id: `${Date.now()}-${Math.random()}`,
@@ -115,12 +123,10 @@ export const IDEProvider: React.FC<IDEProviderProps> = ({ children }) => {
     }]);
   }, []);
 
-  const clearConsole = useCallback(() => {
-    setConsoleMessages([]);
-  }, []);
+  const clearConsole = useCallback(() => setConsoleMessages([]), []);
 
   const addSerialMessage = useCallback((type: SerialMessage['type'], content: string) => {
-    setSerialMessages(prev => [...prev, {
+    setSerialMessages(prev => [...prev.slice(-99), { // Guardar últimos 100
       id: `${Date.now()}-${Math.random()}`,
       type,
       content,
@@ -128,15 +134,14 @@ export const IDEProvider: React.FC<IDEProviderProps> = ({ children }) => {
     }]);
   }, []);
 
-  const clearSerialMessages = useCallback(() => {
-    setSerialMessages([]);
-  }, []);
+  const clearSerialMessages = useCallback(() => setSerialMessages([]), []);
 
+  // --- FUNCIONES DE PROYECTOS ---
   const loadProjects = useCallback(async () => {
     setIsLoading(true);
     try {
       const allProjects = await getAllProjects();
-      setProjects(allProjects.reverse()); // Most recent first
+      setProjects(allProjects.reverse());
     } catch (error) {
       addConsoleMessage('error', `Failed to load projects: ${error}`);
     } finally {
@@ -147,6 +152,7 @@ export const IDEProvider: React.FC<IDEProviderProps> = ({ children }) => {
   const createNewProject = useCallback(async (name: string, blocklyXml: string, code: string): Promise<Project> => {
     const project = await createProject(name, blocklyXml, code, selectedBoard.fqbn);
     setCurrentProject(project);
+    setGeneratedCode(code); // Actualizar editor
     await loadProjects();
     addConsoleMessage('success', `Created new project: ${name}`);
     return project;
@@ -158,8 +164,7 @@ export const IDEProvider: React.FC<IDEProviderProps> = ({ children }) => {
       const project = await getProject(id);
       if (project) {
         setCurrentProject(project);
-        setGeneratedCode(project.generatedCode);
-        // Set board from project
+        setGeneratedCode(project.generatedCode); // Cargar código al editor
         const board = ARDUINO_BOARDS.find(b => b.fqbn === project.board);
         if (board) setSelectedBoard(board);
         addConsoleMessage('info', `Opened project: ${project.name}`);
@@ -172,31 +177,32 @@ export const IDEProvider: React.FC<IDEProviderProps> = ({ children }) => {
   }, [addConsoleMessage]);
 
   const saveProject = useCallback(async (blocklyXml: string, code: string) => {
+    // FIX IMPORTANTE: Usar el código del editor (generatedCode) si existe, 
+    // para no perder los cambios manuales al guardar.
+    const codeToSave = generatedCode || code;
+
     if (!currentProject) {
-      // Create new project
-      await createNewProject('Untitled Project', blocklyXml, code);
+      await createNewProject('Untitled Project', blocklyXml, codeToSave);
       return;
     }
     
     try {
       const updated = await updateProject(currentProject.id, {
         blocklyXml,
-        generatedCode: code,
+        generatedCode: codeToSave,
         board: selectedBoard.fqbn
       });
       if (updated) {
         setCurrentProject(updated);
-        setGeneratedCode(code);
         addConsoleMessage('success', 'Project saved');
       }
     } catch (error) {
       addConsoleMessage('error', `Failed to save project: ${error}`);
     }
-  }, [currentProject, selectedBoard.fqbn, createNewProject, addConsoleMessage]);
+  }, [currentProject, generatedCode, selectedBoard.fqbn, createNewProject, addConsoleMessage]);
 
   const deleteCurrentProject = useCallback(async () => {
     if (!currentProject) return;
-    
     try {
       await deleteProject(currentProject.id);
       setCurrentProject(null);
@@ -213,7 +219,6 @@ export const IDEProvider: React.FC<IDEProviderProps> = ({ children }) => {
       setVersions([]);
       return;
     }
-    
     try {
       const projectVersions = await getProjectVersions(currentProject.id);
       setVersions(projectVersions);
@@ -222,6 +227,7 @@ export const IDEProvider: React.FC<IDEProviderProps> = ({ children }) => {
     }
   }, [currentProject, addConsoleMessage]);
 
+  // Objeto de valor para el Provider
   const value: IDEContextType = {
     currentProject,
     projects,
