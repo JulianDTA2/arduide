@@ -37,19 +37,19 @@ const ConsolePanel: React.FC = () => {
       case 'success':
         return 'text-success bg-success/10 border-success/20';
       default:
-        return 'text-foreground/80 bg-muted/30 border-muted';
+        return 'text-foreground bg-muted/30 border-border';
     }
   };
 
   return (
-    <div className="flex flex-col h-full bg-gradient-to-b from-[hsl(230,25%,16%)] to-[hsl(230,30%,10%)] rounded-b-2xl overflow-hidden">
+    <div className="flex flex-col h-full bg-gradient-to-b from-card to-muted/20 rounded-b-2xl overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-[hsl(230,25%,22%)] bg-[hsl(230,25%,14%)]">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30">
         <div className="flex items-center gap-2">
           <Terminal className="w-4 h-4 text-warning" />
-          <span className="text-sm font-bold text-white/90">Consola</span>
+          <span className="text-sm font-bold text-foreground">Consola</span>
           {consoleMessages.length > 0 && (
-            <span className="px-2 py-0.5 rounded-full bg-warning/20 text-warning text-[10px] font-bold">
+            <span className="px-2 py-0.5 rounded-full bg-warning/15 text-warning text-[10px] font-bold border border-warning/30">
               {consoleMessages.length}
             </span>
           )}
@@ -58,7 +58,7 @@ const ConsolePanel: React.FC = () => {
           variant="ghost"
           size="sm"
           onClick={clearConsole}
-          className="h-8 w-8 p-0 rounded-xl text-white/50 hover:text-white hover:bg-white/10 transition-colors"
+          className="h-8 w-8 p-0 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
         >
           <Trash2 className="w-4 h-4" />
         </Button>
@@ -66,13 +66,13 @@ const ConsolePanel: React.FC = () => {
       
       {/* Messages */}
       <ScrollArea className="flex-1" ref={scrollRef}>
-        <div className="p-3 space-y-2">
+        <div className="p-4 space-y-2">
           {consoleMessages.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
-              <div className="w-16 h-16 rounded-2xl bg-muted/20 flex items-center justify-center mb-4">
+              <div className="w-16 h-16 rounded-2xl bg-muted/40 flex items-center justify-center mb-4 border-2 border-border">
                 <Terminal className="w-8 h-8 text-muted-foreground/50" />
               </div>
-              <p className="text-muted-foreground/70 text-sm font-medium">
+              <p className="text-muted-foreground text-sm font-medium">
                 La salida aparecerá aquí... 🖥️
               </p>
             </div>
@@ -85,11 +85,11 @@ const ConsolePanel: React.FC = () => {
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
                   transition={{ duration: 0.2 }}
-                  className={`flex items-start gap-3 p-3 rounded-xl border ${getColorClass(msg.type)} font-mono text-xs`}
+                  className={`flex items-start gap-3 p-3 rounded-xl border-2 ${getColorClass(msg.type)} font-mono text-xs`}
                 >
                   {getIcon(msg.type)}
                   <div className="flex-1 min-w-0">
-                    <span className="text-white/40 text-[10px] block mb-1">
+                    <span className="text-muted-foreground text-[10px] block mb-1 font-sans">
                       {msg.timestamp.toLocaleTimeString()}
                     </span>
                     <span className="break-all leading-relaxed">{msg.message}</span>

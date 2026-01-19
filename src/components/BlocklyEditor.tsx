@@ -37,37 +37,37 @@ const BlocklyEditor: React.FC<BlocklyEditorProps> = ({ onCodeChange, initialXml 
     // Create generator
     generatorRef.current = createArduinoGenerator();
 
-    // Create workspace with dark theme
-    const darkTheme = Blockly.Theme.defineTheme('arduino-dark', {
-      name: 'arduino-dark',
+    // Create workspace with kid-friendly light theme
+    const kidsTheme = Blockly.Theme.defineTheme('arduino-kids', {
+      name: 'arduino-kids',
       base: Blockly.Themes.Classic,
       componentStyles: {
-        workspaceBackgroundColour: '#1a1f2e',
-        toolboxBackgroundColour: '#151922',
-        toolboxForegroundColour: '#e0e0e0',
-        flyoutBackgroundColour: '#1e2433',
-        flyoutForegroundColour: '#e0e0e0',
-        flyoutOpacity: 0.95,
-        scrollbarColour: '#2d3548',
-        insertionMarkerColour: '#00979d',
-        insertionMarkerOpacity: 0.3,
-        scrollbarOpacity: 0.8,
-        cursorColour: '#00979d',
+        workspaceBackgroundColour: '#f8fafc',
+        toolboxBackgroundColour: '#f1f5f9',
+        toolboxForegroundColour: '#475569',
+        flyoutBackgroundColour: '#f8fafc',
+        flyoutForegroundColour: '#334155',
+        flyoutOpacity: 0.98,
+        scrollbarColour: '#94a3b8',
+        insertionMarkerColour: '#06b6d4',
+        insertionMarkerOpacity: 0.4,
+        scrollbarOpacity: 0.7,
+        cursorColour: '#06b6d4',
       },
       fontStyle: {
-        family: 'JetBrains Mono, monospace',
-        weight: 'normal',
+        family: 'Nunito, Quicksand, sans-serif',
+        weight: 'bold',
         size: 12,
       },
     });
 
     workspaceRef.current = Blockly.inject(containerRef.current, {
       toolbox: arduinoToolbox,
-      theme: darkTheme,
+      theme: kidsTheme,
       grid: {
-        spacing: 20,
-        length: 3,
-        colour: '#2d3548',
+        spacing: 24,
+        length: 4,
+        colour: '#e2e8f0',
         snap: true,
       },
       zoom: {
@@ -184,7 +184,7 @@ const BlocklyEditor: React.FC<BlocklyEditorProps> = ({ onCodeChange, initialXml 
   return (
     <div 
       ref={containerRef} 
-      className="w-full h-full blockly-container"
+      className="w-full h-full blockly-container bg-card"
       style={{ minHeight: '400px' }}
     />
   );
