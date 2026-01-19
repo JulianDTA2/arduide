@@ -159,7 +159,7 @@ const SerialMonitor: React.FC = () => {
   return (
     <div className="flex flex-col h-full bg-gradient-to-b from-card to-muted/20 rounded-b-2xl overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30 flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <Radio className={`w-4 h-4 ${isMonitorConnected ? 'text-success' : 'text-muted-foreground'}`} />
           <span className="text-sm font-bold text-foreground">Monitor Serie</span>
@@ -172,19 +172,19 @@ const SerialMonitor: React.FC = () => {
           )}
         </div>
         
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {/* Baud Rate Selector */}
           <Select
             value={serialBaudRate.toString()}
             onValueChange={(v) => setSerialBaudRate(Number(v))}
             disabled={isMonitorConnected}
           >
-            <SelectTrigger className="w-24 h-9 text-xs rounded-xl border-2 border-border bg-input font-bold">
+            <SelectTrigger className="neu-input w-24 h-9 text-xs font-bold">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent className="rounded-xl border-2">
+            <SelectContent className="ide-panel border-none">
               {BAUD_RATES.map((rate) => (
-                <SelectItem key={rate} value={rate.toString()} className="font-medium">
+                <SelectItem key={rate} value={rate.toString()} className="font-medium rounded-lg">
                   {rate}
                 </SelectItem>
               ))}
@@ -193,21 +193,21 @@ const SerialMonitor: React.FC = () => {
           
           {/* Connect/Disconnect Button */}
           {isMonitorConnected ? (
-            <Button
+            <button
               onClick={handleDisconnect}
-              className="clay-btn h-9 px-4 bg-destructive/10 text-destructive border-destructive/30 hover:bg-destructive/20"
+              className="clay-btn h-9 px-3 text-xs bg-destructive/10 text-destructive border-destructive/30 hover:bg-destructive/20"
             >
               <Unplug className="w-4 h-4 mr-1.5" />
               Desconectar
-            </Button>
+            </button>
           ) : (
-            <Button
+            <button
               onClick={handleConnect}
-              className="clay-btn clay-btn-success h-9 px-4"
+              className="clay-btn clay-btn-success h-9 px-3 text-xs"
             >
               <Plug className="w-4 h-4 mr-1.5" />
               Conectar
-            </Button>
+            </button>
           )}
           
           {/* Auto-scroll toggle */}
@@ -236,22 +236,22 @@ const SerialMonitor: React.FC = () => {
       </div>
       
       {/* Messages Area */}
-      <ScrollArea className="flex-1 bg-muted/20" ref={scrollRef}>
-        <div className="p-4 font-mono text-sm space-y-1">
+      <ScrollArea className="flex-1 bg-muted/10" ref={scrollRef}>
+        <div className="p-4 font-mono text-sm space-y-1.5">
           {serialMessages.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <motion.div 
                 className={`w-20 h-20 rounded-3xl flex items-center justify-center mb-4 ${
                   isMonitorConnected 
                     ? 'bg-success/10 border-2 border-success/30' 
-                    : 'bg-muted/50 border-2 border-muted'
+                    : 'bg-muted/30 border-2 border-border'
                 }`}
                 animate={isMonitorConnected ? { scale: [1, 1.05, 1] } : {}}
                 transition={{ duration: 2, repeat: Infinity }}
               >
                 <Zap className={`w-10 h-10 ${isMonitorConnected ? 'text-success' : 'text-muted-foreground/50'}`} />
               </motion.div>
-              <p className="text-muted-foreground font-medium">
+              <p className="text-muted-foreground font-medium font-sans">
                 {isMonitorConnected 
                   ? '⏳ Esperando datos...' 
                   : '🔌 Conecta para ver la salida serie'}
@@ -264,10 +264,10 @@ const SerialMonitor: React.FC = () => {
                   key={msg.id}
                   initial={{ opacity: 0, x: msg.type === 'sent' ? 20 : -20 }}
                   animate={{ opacity: 1, x: 0 }}
-                  className={`py-1.5 px-3 rounded-lg ${
+                  className={`py-2 px-3 rounded-xl ${
                     msg.type === 'sent' 
-                      ? 'bg-primary/10 text-primary border-l-3 border-primary ml-8' 
-                      : 'bg-card text-foreground border-l-3 border-success mr-8'
+                      ? 'bg-primary/10 text-primary border-l-4 border-primary ml-8' 
+                      : 'bg-card text-foreground border-l-4 border-success mr-8 shadow-sm'
                   }`}
                 >
                   {msg.type === 'sent' && (
@@ -285,7 +285,7 @@ const SerialMonitor: React.FC = () => {
       </ScrollArea>
       
       {/* Input Area */}
-      <div className="flex items-center gap-3 p-3 border-t border-border bg-card">
+      <div className="flex items-center gap-3 p-3 border-t border-border bg-card/50">
         <Input
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
@@ -294,13 +294,13 @@ const SerialMonitor: React.FC = () => {
           disabled={!isMonitorConnected}
           className="neu-input flex-1 h-10 text-sm"
         />
-        <Button
+        <button
           onClick={handleSend}
           disabled={!isMonitorConnected || !inputValue.trim()}
           className="clay-btn clay-btn-primary h-10 px-5"
         >
           <Send className="w-4 h-4" />
-        </Button>
+        </button>
       </div>
     </div>
   );
