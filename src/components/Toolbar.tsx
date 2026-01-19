@@ -320,67 +320,64 @@ const Toolbar: React.FC<ToolbarProps> = ({
 
   return (
     <>
-      <div className="flex items-center justify-between px-4 py-2 bg-card border-b border-border">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 mr-4">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center glow-teal-sm">
-              <Cpu className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <span className="text-lg font-bold text-foreground">Arduino Web IDE</span>
-          </div>
-
+      <div className="toolbar-island flex-wrap gap-2">
+        {/* Left Section */}
+        <div className="flex items-center gap-2 flex-wrap">
           <Dialog open={showNewDialog} onOpenChange={setShowNewDialog}>
             <DialogTrigger asChild>
-              <Button variant="ghost" size="sm" className="gap-1.5">
-                <FilePlus className="w-4 h-4" />
-                New
-              </Button>
+              <button className="clay-btn gap-2 text-xs">
+                <FilePlus className="w-4 h-4 text-primary" />
+                <span className="hidden sm:inline">Nuevo</span>
+              </button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="ide-panel border-none">
               <DialogHeader>
-                <DialogTitle>New Project</DialogTitle>
+                <DialogTitle className="text-xl font-black text-primary">✨ Nuevo Proyecto</DialogTitle>
                 <DialogDescription>
-                  Create a new Arduino project. Your work will be saved locally.
+                  Crea un nuevo proyecto Arduino. Tu trabajo se guardará automáticamente.
                 </DialogDescription>
               </DialogHeader>
               <div className="py-4">
-                <Label htmlFor="projectName">Project Name</Label>
+                <Label htmlFor="projectName" className="font-bold">Nombre del Proyecto</Label>
                 <Input
                   id="projectName"
                   value={newProjectName}
                   onChange={(e) => setNewProjectName(e.target.value)}
-                  placeholder="My Arduino Project"
-                  className="mt-2"
+                  placeholder="Mi Proyecto Arduino 🤖"
+                  className="neu-input mt-2"
                   onKeyDown={(e) => e.key === 'Enter' && handleNewProject()}
                 />
               </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setShowNewDialog(false)}>
-                  Cancel
+              <DialogFooter className="gap-2">
+                <Button variant="outline" onClick={() => setShowNewDialog(false)} className="clay-btn">
+                  Cancelar
                 </Button>
-                <Button onClick={handleNewProject}>Create</Button>
+                <Button onClick={handleNewProject} className="clay-btn clay-btn-primary">
+                  Crear 🚀
+                </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="gap-1.5">
-                <FolderOpen className="w-4 h-4" />
-                Open
-              </Button>
+              <button className="clay-btn gap-2 text-xs">
+                <FolderOpen className="w-4 h-4 text-secondary" />
+                <span className="hidden sm:inline">Abrir</span>
+              </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-56">
+            <DropdownMenuContent align="start" className="w-56 ide-panel border-none p-2">
               {projects.length === 0 ? (
-                <DropdownMenuItem disabled>No saved projects</DropdownMenuItem>
+                <DropdownMenuItem disabled className="rounded-xl">Sin proyectos guardados</DropdownMenuItem>
               ) : (
                 projects.map((project) => (
                   <DropdownMenuItem
                     key={project.id}
                     onClick={() => onOpenProject(project.id)}
+                    className="rounded-xl font-medium"
                   >
                     <div className="flex flex-col">
-                      <span>{project.name}</span>
+                      <span>📁 {project.name}</span>
                       <span className="text-xs text-muted-foreground">
                         {new Date(project.updatedAt).toLocaleDateString()}
                       </span>
@@ -389,83 +386,45 @@ const Toolbar: React.FC<ToolbarProps> = ({
                 ))
               )}
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleLoadFromCloud}>
-                <Cloud className="w-4 h-4 mr-2" />
-                Load from Cloud
+              <DropdownMenuItem onClick={handleLoadFromCloud} className="rounded-xl font-medium">
+                <Cloud className="w-4 h-4 mr-2 text-primary" />
+                Cargar de la Nube
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => document.getElementById('import-file')?.click()}>
-                Import from file...
-              </DropdownMenuItem>
-              <input
-                id="import-file"
-                type="file"
-                accept=".json"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) {
-                    addConsoleMessage('info', `Importing ${file.name}...`);
-                  }
-                }}
-              />
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <Button variant="ghost" size="sm" onClick={onSave} className="gap-1.5">
-            <Save className="w-4 h-4" />
-            Save
-          </Button>
+          <button onClick={onSave} className="clay-btn gap-2 text-xs">
+            <Save className="w-4 h-4 text-success" />
+            <span className="hidden sm:inline">Guardar</span>
+          </button>
 
-          <Button 
-            variant="ghost" 
-            size="sm" 
+          <button 
             onClick={handleCloudSync} 
-            className="gap-1.5"
+            className="clay-btn gap-2 text-xs"
             disabled={isSyncing}
           >
             {isSyncing ? (
-              <RefreshCw className="w-4 h-4 animate-spin" />
+              <RefreshCw className="w-4 h-4 animate-spin text-primary" />
             ) : (
-              <Cloud className="w-4 h-4" />
+              <Cloud className="w-4 h-4 text-primary" />
             )}
-            Sync
-          </Button>
-
-          {currentProject && (
-            <span className="text-sm text-muted-foreground px-2 py-1 bg-secondary rounded">
-              {currentProject.name}
-            </span>
-          )}
+            <span className="hidden sm:inline">Sync</span>
+          </button>
         </div>
 
-        <div className="flex items-center gap-3">
-          {!authLoading && (
-            isAuthenticated ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="gap-1.5">
-                    <Cloud className="w-4 h-4 text-primary" />
-                    <span className="text-xs truncate max-w-24">{user?.email}</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={handleSignOut}>
-                    <LogOut className="w-4 h-4 mr-2" />
-                    Sign Out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : (
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => setShowAuthDialog(true)}
-                className="gap-1.5"
-              >
-                <CloudOff className="w-4 h-4" />
-                Sign In
-              </Button>
-            )
+        {/* Separator */}
+        <div className="h-8 w-px bg-border hidden md:block" />
+
+        {/* Right Section */}
+        <div className="flex items-center gap-2 flex-wrap ml-auto">
+          {!authLoading && !isAuthenticated && (
+            <button 
+              onClick={() => setShowAuthDialog(true)}
+              className="clay-btn gap-2 text-xs"
+            >
+              <CloudOff className="w-4 h-4" />
+              <span className="hidden sm:inline">Iniciar Sesión</span>
+            </button>
           )}
 
           <Select
@@ -475,49 +434,44 @@ const Toolbar: React.FC<ToolbarProps> = ({
               if (board) setSelectedBoard(board);
             }}
           >
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Select board" />
+            <SelectTrigger className="neu-input w-[160px] h-10 text-xs font-bold">
+              <SelectValue placeholder="Seleccionar placa" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="ide-panel border-none">
               {ARDUINO_BOARDS.map((board) => (
-                <SelectItem key={board.fqbn} value={board.fqbn}>
+                <SelectItem key={board.fqbn} value={board.fqbn} className="font-medium rounded-lg">
                   {board.name}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
 
-          <Button
-            variant={isConnected ? "outline" : "secondary"}
-            size="sm"
+          <button
             onClick={handleConnect}
-            className="gap-1.5"
+            className={`clay-btn gap-2 text-xs ${isConnected ? 'clay-btn-success' : ''}`}
           >
             <Usb className="w-4 h-4" />
-            <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-success' : 'bg-muted-foreground'}`} />
-            {isConnected ? 'Connected' : 'Connect'}
-          </Button>
+            <span className={`status-dot ${isConnected ? 'status-dot-connected' : 'status-dot-disconnected'}`} />
+            <span className="hidden sm:inline">{isConnected ? 'Conectado' : 'Conectar'}</span>
+          </button>
 
-          <Button
-            variant="secondary"
-            size="sm"
+          <button
             onClick={handleBuild}
             disabled={isUploading}
-            className="gap-1.5"
+            className="clay-btn clay-btn-warning gap-2 text-xs"
           >
             <Hammer className="w-4 h-4" />
-            Build
-          </Button>
+            <span className="hidden sm:inline">Compilar</span>
+          </button>
 
-          <Button
-            size="sm"
+          <button
             onClick={handleUpload}
             disabled={isUploading}
-            className="gap-1.5 bg-primary hover:bg-arduino-teal-light"
+            className="clay-btn clay-btn-primary gap-2 text-xs"
           >
             <Upload className="w-4 h-4" />
-            Upload
-          </Button>
+            <span className="hidden sm:inline">Subir</span>
+          </button>
         </div>
       </div>
 

@@ -1,115 +1,459 @@
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Quicksand:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 210 100% 98%;
-    --foreground: 220 20% 35%;
+    /* === PALETA KIDS - COLORES PASTEL VIBRANTES === */
+    --background: 220 30% 96%;
+    --foreground: 230 25% 30%;
+    
     --card: 0 0% 100%;
-    --card-foreground: 220 20% 35%;
+    --card-foreground: 230 25% 30%;
+    
     --popover: 0 0% 100%;
-    --popover-foreground: 220 20% 35%;
-    --primary: 195 85% 55%;
+    --popover-foreground: 230 25% 30%;
+    
+    /* Azul cielo brillante - Principal */
+    --primary: 200 90% 55%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 330 85% 75%;
-    --secondary-foreground: 330 20% 20%;
-    --muted: 210 20% 90%;
-    --muted-foreground: 210 10% 60%;
-    --accent: 45 100% 60%;
-    --accent-foreground: 45 20% 20%;
-    --destructive: 0 85% 65%;
+    
+    /* Rosa chicle - Secundario */
+    --secondary: 330 85% 70%;
+    --secondary-foreground: 330 30% 25%;
+    
+    /* Lavanda suave - Muted */
+    --muted: 250 30% 92%;
+    --muted-foreground: 230 15% 50%;
+    
+    /* Amarillo sol - Accent */
+    --accent: 45 100% 65%;
+    --accent-foreground: 40 80% 25%;
+    
+    /* Estados */
+    --destructive: 0 75% 60%;
     --destructive-foreground: 0 0% 100%;
-    --success: 150 70% 50%;
+    
+    --success: 145 70% 50%;
     --success-foreground: 0 0% 100%;
-    --warning: 35 95% 60%;
-    --warning-foreground: 0 0% 100%;
-    --border: 210 30% 90%;
-    --input: 210 20% 92%;
-    --ring: 195 85% 55%;
-    --radius: 1.5rem;
     
-    /* Variables Legacy Arduino Mapeadas */
-    --arduino-teal: 195 85% 55%;
-    --arduino-teal-light: 195 90% 65%;
-    --arduino-teal-dark: 195 100% 40%;
+    --warning: 35 95% 55%;
+    --warning-foreground: 35 90% 20%;
+    
+    /* Bordes y inputs */
+    --border: 220 20% 88%;
+    --input: 220 25% 94%;
+    --ring: 200 90% 55%;
+    
+    /* Radio grande para aspecto "gominola" */
+    --radius: 1.25rem;
+    
+    /* === PANELES KIDS === */
     --panel-bg: 0 0% 100%;
-    --panel-header: 210 30% 96%;
-    --panel-border: 210 30% 90%;
+    --panel-header: 220 30% 97%;
+    --panel-border: 220 25% 90%;
     
-    /* Syntax Highlighting Brillante */
-    --syntax-keyword: 260 70% 60%;
-    --syntax-string: 150 60% 40%;
-    --syntax-number: 30 90% 55%;
-    --syntax-comment: 210 10% 65%;
-    --syntax-function: 195 85% 45%;
-    --syntax-variable: 330 70% 55%;
+    /* === ARDUINO COLORS - Adaptados para niños === */
+    --arduino-teal: 175 80% 45%;
+    --arduino-teal-light: 175 85% 55%;
+    --arduino-teal-dark: 175 90% 35%;
+    
+    /* === SYNTAX HIGHLIGHTING - Colores vibrantes === */
+    --syntax-keyword: 280 70% 55%;
+    --syntax-string: 145 65% 40%;
+    --syntax-number: 25 90% 50%;
+    --syntax-comment: 220 15% 55%;
+    --syntax-function: 200 85% 45%;
+    --syntax-variable: 330 75% 55%;
     --syntax-type: 45 90% 45%;
-    --syntax-operator: 220 20% 50%;
+    --syntax-operator: 230 30% 45%;
 
-    /* Status */
-    --status-connected: 150 70% 50%;
-    --status-disconnected: 0 85% 65%;
-    --status-connecting: 45 100% 60%;
+    /* === STATUS COLORS === */
+    --status-connected: 145 70% 50%;
+    --status-disconnected: 0 75% 60%;
+    --status-connecting: 45 100% 55%;
 
-    /* Sidebar */
+    /* === SIDEBAR KIDS === */
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 220 20% 40%;
-    --sidebar-primary: 195 85% 55%;
+    --sidebar-foreground: 230 25% 35%;
+    --sidebar-primary: 200 90% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 210 50% 96%;
-    --sidebar-accent-foreground: 195 85% 45%;
-    --sidebar-border: 210 30% 90%;
-    --sidebar-ring: 195 85% 55%;
+    --sidebar-accent: 250 40% 96%;
+    --sidebar-accent-foreground: 200 85% 45%;
+    --sidebar-border: 220 25% 90%;
+    --sidebar-ring: 200 90% 55%;
+    
+    /* === NEUMORPHISM COLORS === */
+    --neu-shadow-dark: 220 30% 75%;
+    --neu-shadow-light: 0 0% 100%;
+    --neu-inset-dark: 220 25% 80%;
+    --neu-inset-light: 0 0% 100%;
+    
+    /* === GRADIENTES KIDS === */
+    --gradient-candy: linear-gradient(135deg, hsl(330 85% 70%), hsl(200 90% 55%));
+    --gradient-sunset: linear-gradient(135deg, hsl(35 95% 55%), hsl(330 85% 70%));
+    --gradient-ocean: linear-gradient(135deg, hsl(200 90% 55%), hsl(175 80% 45%));
+    --gradient-rainbow: linear-gradient(90deg, 
+      hsl(0 75% 60%), 
+      hsl(35 95% 55%), 
+      hsl(145 70% 50%), 
+      hsl(200 90% 55%), 
+      hsl(280 70% 55%), 
+      hsl(330 85% 70%)
+    );
   }
 
   .dark {
-     /* Igual al claro para mantener estilo infantil */
-     /* Opcional: ajustar si deseas modo oscuro real */
+    /* Modo oscuro deshabilitado - mantenemos estilo infantil brillante */
   }
 }
 
 @layer base {
-  * { @apply border-border; }
-  body {
-    @apply bg-background text-foreground antialiased;
-    font-family: 'Quicksand', 'Nunito', sans-serif;
-    background-image: radial-gradient(hsl(210 30% 90%) 2px, transparent 2px);
-    background-size: 32px 32px;
+  * { 
+    @apply border-border; 
   }
   
-  /* Scrollbars Gominola */
-  ::-webkit-scrollbar { width: 12px; height: 12px; }
-  ::-webkit-scrollbar-track { background: transparent; margin: 4px; }
-  ::-webkit-scrollbar-thumb {
-    background: hsl(210 20% 85%);
-    border-radius: 99px;
-    border: 3px solid hsl(var(--background));
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Nunito', 'Quicksand', 'Segoe UI', sans-serif;
+    /* Fondo con patrón de puntos suave */
+    background-image: 
+      radial-gradient(circle at 10% 20%, hsl(200 90% 95% / 0.5) 0%, transparent 50%),
+      radial-gradient(circle at 90% 80%, hsl(330 85% 95% / 0.5) 0%, transparent 50%),
+      radial-gradient(hsl(220 30% 88%) 1.5px, transparent 1.5px);
+    background-size: 100% 100%, 100% 100%, 24px 24px;
+    background-attachment: fixed;
   }
-  ::-webkit-scrollbar-thumb:hover { background: hsl(var(--primary) / 0.6); }
+  
+  /* === SCROLLBARS GOMINOLA === */
+  ::-webkit-scrollbar { 
+    width: 14px; 
+    height: 14px; 
+  }
+  
+  ::-webkit-scrollbar-track { 
+    background: hsl(var(--muted));
+    border-radius: 10px;
+    margin: 4px;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, hsl(var(--primary)), hsl(var(--secondary)));
+    border-radius: 10px;
+    border: 3px solid hsl(var(--background));
+    transition: all 0.3s ease;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover { 
+    background: linear-gradient(180deg, hsl(var(--primary) / 0.9), hsl(var(--secondary) / 0.9));
+  }
+  
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
 }
 
 @layer components {
+  /* === PANEL CLAYMORPHISM === */
   .ide-panel {
-    @apply bg-card rounded-2xl overflow-hidden transition-all duration-300;
-    box-shadow: 8px 8px 16px rgba(165, 177, 194, 0.2), -8px -8px 16px rgba(255, 255, 255, 0.8), inset 2px 2px 4px rgba(255, 255, 255, 0.5);
-    border: 2px solid white;
+    @apply bg-card rounded-3xl overflow-hidden;
+    box-shadow: 
+      12px 12px 24px hsl(var(--neu-shadow-dark) / 0.25),
+      -12px -12px 24px hsl(var(--neu-shadow-light)),
+      inset 0 2px 4px hsl(var(--neu-shadow-light)),
+      inset 0 -1px 2px hsl(var(--neu-shadow-dark) / 0.1);
+    border: 3px solid hsl(var(--neu-shadow-light) / 0.8);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
-  .ide-panel-header {
-    @apply bg-[hsl(var(--panel-header))] px-4 py-3 flex items-center gap-3 border-b border-[hsl(var(--panel-border))];
-    font-weight: 700;
-  }
-  .toolbar-btn {
-    @apply flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all duration-200 bg-white text-[hsl(var(--foreground))];
-    box-shadow: 4px 4px 8px rgba(165, 177, 194, 0.2), -4px -4px 8px rgba(255, 255, 255, 0.9);
-  }
-  .toolbar-btn:hover { @apply -translate-y-0.5 shadow-lg; }
-  .toolbar-btn:active { @apply translate-y-0 shadow-inner; }
   
-  .code-block {
-    @apply font-mono text-sm leading-relaxed rounded-xl p-4;
-    background: hsl(210 20% 97%);
-    box-shadow: inset 4px 4px 8px rgba(165, 177, 194, 0.2), inset -4px -4px 8px rgba(255, 255, 255, 1);
-    border: 1px solid rgba(255,255,255,0.5);
+  .ide-panel:hover {
+    box-shadow: 
+      14px 14px 28px hsl(var(--neu-shadow-dark) / 0.3),
+      -14px -14px 28px hsl(var(--neu-shadow-light)),
+      inset 0 2px 4px hsl(var(--neu-shadow-light)),
+      inset 0 -1px 2px hsl(var(--neu-shadow-dark) / 0.1);
   }
+  
+  /* === PANEL HEADER KIDS === */
+  .ide-panel-header {
+    @apply px-5 py-4 flex items-center gap-3;
+    background: linear-gradient(180deg, hsl(var(--panel-header)), hsl(var(--card)));
+    border-bottom: 2px solid hsl(var(--border) / 0.5);
+    font-weight: 800;
+    font-size: 0.95rem;
+  }
+  
+  /* === BOTÓN CLAYMORPHISM === */
+  .clay-btn {
+    @apply relative flex items-center justify-center gap-2 px-5 py-3 rounded-2xl text-sm font-bold transition-all duration-200;
+    background: linear-gradient(145deg, hsl(var(--card)), hsl(var(--muted) / 0.3));
+    box-shadow: 
+      6px 6px 12px hsl(var(--neu-shadow-dark) / 0.2),
+      -6px -6px 12px hsl(var(--neu-shadow-light)),
+      inset 0 1px 2px hsl(var(--neu-shadow-light)),
+      inset 0 -1px 1px hsl(var(--neu-shadow-dark) / 0.05);
+    border: 2px solid hsl(var(--neu-shadow-light) / 0.6);
+    color: hsl(var(--foreground));
+  }
+  
+  .clay-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 
+      8px 8px 16px hsl(var(--neu-shadow-dark) / 0.25),
+      -8px -8px 16px hsl(var(--neu-shadow-light)),
+      inset 0 1px 2px hsl(var(--neu-shadow-light)),
+      inset 0 -1px 1px hsl(var(--neu-shadow-dark) / 0.05);
+  }
+  
+  .clay-btn:active {
+    transform: translateY(0);
+    box-shadow: 
+      inset 4px 4px 8px hsl(var(--neu-shadow-dark) / 0.15),
+      inset -4px -4px 8px hsl(var(--neu-shadow-light) / 0.5);
+  }
+  
+  .clay-btn-primary {
+    background: linear-gradient(145deg, hsl(var(--primary)), hsl(var(--primary) / 0.85));
+    color: hsl(var(--primary-foreground));
+    border-color: hsl(var(--primary) / 0.3);
+    box-shadow: 
+      6px 6px 12px hsl(var(--primary) / 0.3),
+      -4px -4px 10px hsl(var(--neu-shadow-light)),
+      inset 0 2px 4px hsl(0 0% 100% / 0.3),
+      inset 0 -2px 4px hsl(var(--primary) / 0.2);
+  }
+  
+  .clay-btn-primary:hover {
+    box-shadow: 
+      8px 8px 16px hsl(var(--primary) / 0.35),
+      -6px -6px 12px hsl(var(--neu-shadow-light)),
+      inset 0 2px 4px hsl(0 0% 100% / 0.3),
+      inset 0 -2px 4px hsl(var(--primary) / 0.2);
+  }
+  
+  .clay-btn-secondary {
+    background: linear-gradient(145deg, hsl(var(--secondary)), hsl(var(--secondary) / 0.85));
+    color: hsl(var(--secondary-foreground));
+    border-color: hsl(var(--secondary) / 0.3);
+  }
+  
+  .clay-btn-success {
+    background: linear-gradient(145deg, hsl(var(--success)), hsl(var(--success) / 0.85));
+    color: hsl(var(--success-foreground));
+    border-color: hsl(var(--success) / 0.3);
+  }
+  
+  .clay-btn-warning {
+    background: linear-gradient(145deg, hsl(var(--warning)), hsl(var(--warning) / 0.85));
+    color: hsl(var(--warning-foreground));
+    border-color: hsl(var(--warning) / 0.3);
+  }
+  
+  /* === INPUT NEUMORPHISM === */
+  .neu-input {
+    @apply rounded-xl px-4 py-3 text-sm font-medium;
+    background: hsl(var(--input));
+    box-shadow: 
+      inset 3px 3px 6px hsl(var(--neu-shadow-dark) / 0.15),
+      inset -3px -3px 6px hsl(var(--neu-shadow-light));
+    border: 2px solid transparent;
+    transition: all 0.2s ease;
+  }
+  
+  .neu-input:focus {
+    outline: none;
+    border-color: hsl(var(--primary) / 0.5);
+    box-shadow: 
+      inset 3px 3px 6px hsl(var(--neu-shadow-dark) / 0.15),
+      inset -3px -3px 6px hsl(var(--neu-shadow-light)),
+      0 0 0 3px hsl(var(--primary) / 0.2);
+  }
+  
+  /* === ÁREA DE TRABAJO HUNDIDA === */
+  .workspace-inset {
+    @apply rounded-3xl overflow-hidden;
+    background: linear-gradient(145deg, hsl(var(--muted) / 0.4), hsl(var(--background)));
+    box-shadow: 
+      inset 8px 8px 16px hsl(var(--neu-shadow-dark) / 0.15),
+      inset -8px -8px 16px hsl(var(--neu-shadow-light) / 0.8);
+    border: 3px solid hsl(var(--neu-shadow-light) / 0.5);
+  }
+  
+  /* === BADGES KIDS === */
+  .badge-candy {
+    @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold;
+    background: linear-gradient(135deg, hsl(var(--primary) / 0.15), hsl(var(--secondary) / 0.15));
+    color: hsl(var(--primary));
+    border: 2px solid hsl(var(--primary) / 0.2);
+  }
+  
+  /* === CODE BLOCK KIDS === */
+  .code-block {
+    @apply font-mono text-sm leading-relaxed rounded-2xl p-5;
+    background: linear-gradient(180deg, hsl(230 20% 18%), hsl(230 25% 14%));
+    box-shadow: 
+      inset 4px 4px 8px hsl(230 30% 10% / 0.5),
+      inset -4px -4px 8px hsl(230 20% 22% / 0.3);
+    border: 2px solid hsl(230 25% 25% / 0.5);
+  }
+  
+  /* === TABS KIDS === */
+  .tab-candy {
+    @apply relative px-5 py-3 rounded-t-2xl font-bold text-sm transition-all duration-200;
+    color: hsl(var(--muted-foreground));
+  }
+  
+  .tab-candy:hover {
+    color: hsl(var(--foreground));
+    background: hsl(var(--muted) / 0.5);
+  }
+  
+  .tab-candy[data-state="active"] {
+    color: hsl(var(--primary));
+    background: hsl(var(--card));
+    box-shadow: 
+      0 -4px 12px hsl(var(--primary) / 0.15),
+      inset 0 2px 4px hsl(var(--neu-shadow-light));
+  }
+  
+  .tab-candy[data-state="active"]::after {
+    content: '';
+    @apply absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-1 rounded-full;
+    background: linear-gradient(90deg, hsl(var(--primary)), hsl(var(--secondary)));
+  }
+  
+  /* === GLOW EFFECTS === */
+  .glow-primary {
+    box-shadow: 0 0 20px hsl(var(--primary) / 0.4);
+  }
+  
+  .glow-success {
+    box-shadow: 0 0 20px hsl(var(--success) / 0.4);
+  }
+  
+  .glow-warning {
+    box-shadow: 0 0 20px hsl(var(--warning) / 0.4);
+  }
+  
+  /* === STATUS INDICATOR === */
+  .status-dot {
+    @apply w-3 h-3 rounded-full;
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+  
+  .status-dot-connected {
+    background: hsl(var(--success));
+    box-shadow: 0 0 8px hsl(var(--success) / 0.6);
+  }
+  
+  .status-dot-disconnected {
+    background: hsl(var(--muted-foreground));
+    animation: none;
+  }
+  
+  .status-dot-warning {
+    background: hsl(var(--warning));
+    box-shadow: 0 0 8px hsl(var(--warning) / 0.6);
+  }
+  
+  @keyframes pulse-glow {
+    0%, 100% { 
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% { 
+      opacity: 0.7;
+      transform: scale(1.1);
+    }
+  }
+  
+  /* === FLOATING LABELS === */
+  .floating-label {
+    @apply absolute px-4 py-2 rounded-full text-xs font-bold pointer-events-none;
+    background: hsl(var(--card) / 0.95);
+    backdrop-filter: blur(8px);
+    box-shadow: 
+      4px 4px 8px hsl(var(--neu-shadow-dark) / 0.15),
+      -4px -4px 8px hsl(var(--neu-shadow-light));
+    border: 2px solid hsl(var(--neu-shadow-light) / 0.6);
+  }
+  
+  /* === RAINBOW BAR === */
+  .rainbow-bar {
+    height: 4px;
+    background: var(--gradient-rainbow);
+    background-size: 200% 100%;
+    animation: rainbow-shift 3s linear infinite;
+  }
+  
+  @keyframes rainbow-shift {
+    0% { background-position: 0% 50%; }
+    100% { background-position: 200% 50%; }
+  }
+  
+  /* === TOOLBAR ISLAND === */
+  .toolbar-island {
+    @apply flex items-center gap-3 px-4 py-3 rounded-2xl;
+    background: hsl(var(--card));
+    box-shadow: 
+      8px 8px 16px hsl(var(--neu-shadow-dark) / 0.2),
+      -8px -8px 16px hsl(var(--neu-shadow-light)),
+      inset 0 1px 2px hsl(var(--neu-shadow-light));
+    border: 2px solid hsl(var(--neu-shadow-light) / 0.6);
+  }
+  
+  /* === SIDEBAR CLAY === */
+  .sidebar-clay {
+    background: hsl(var(--card));
+    box-shadow: 
+      8px 0 24px hsl(var(--neu-shadow-dark) / 0.15),
+      inset -1px 0 0 hsl(var(--neu-shadow-light));
+    border-radius: 0 2rem 2rem 0;
+  }
+}
+
+/* === ANIMACIONES KIDS === */
+@keyframes bounce-in {
+  0% { transform: scale(0.8); opacity: 0; }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes wiggle {
+  0%, 100% { transform: rotate(-2deg); }
+  50% { transform: rotate(2deg); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+.animate-bounce-in {
+  animation: bounce-in 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.animate-wiggle {
+  animation: wiggle 0.5s ease-in-out;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* === BLOCKLY OVERRIDES === */
+.blockly-container .blocklyMainBackground {
+  stroke: none !important;
+}
+
+.blockly-container .blocklyToolboxDiv {
+  background: hsl(var(--muted)) !important;
+  border-radius: 0 1.5rem 1.5rem 0 !important;
+  padding: 8px !important;
+}
+
+.blockly-container .blocklyFlyout {
+  border-radius: 1rem !important;
 }

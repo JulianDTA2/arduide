@@ -8,7 +8,7 @@ import Toolbar from '@/components/Toolbar';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarFooter, SidebarTrigger } from '@/components/ui/sidebar';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
-import { Code, Terminal, Radio, Home, Settings, LogOut, Cloud } from 'lucide-react';
+import { Code, Terminal, Radio, Home, Settings, LogOut, Cloud, Sparkles, Cpu } from 'lucide-react';
 import * as Blockly from 'blockly';
 import { useAuth } from '@/hooks/useAuth';
 import { 
@@ -17,6 +17,7 @@ import {
   type CloudProject 
 } from '@/lib/cloud-storage';
 import { toast } from 'sonner';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const IDEContent: React.FC = () => {
   const { 
@@ -36,7 +37,6 @@ const IDEContent: React.FC = () => {
 
   const workspaceRef = useRef<Blockly.WorkspaceSvg | null>(null);
   
-  // Get workspace reference for saving
   useEffect(() => {
     const checkWorkspace = () => {
       const container = document.querySelector('.blockly-container');
@@ -77,7 +77,6 @@ const IDEContent: React.FC = () => {
     addConsoleMessage('info', 'Project loaded successfully');
   }, [openProject, addConsoleMessage]);
 
-  // Cloud sync functions
   const handleSyncToCloud = useCallback(async () => {
     if (!isAuthenticated) {
       toast.error('Please sign in to sync to cloud');
@@ -115,7 +114,6 @@ const IDEContent: React.FC = () => {
       return;
     }
 
-    // Load the most recent cloud project
     const latestProject = cloudProjects[0];
     setCloudProjectId(latestProject.id);
     
@@ -128,7 +126,6 @@ const IDEContent: React.FC = () => {
     addConsoleMessage('success', `Loaded cloud project: ${latestProject.name}`);
   }, [isAuthenticated, createNewProject, addConsoleMessage]);
 
-  // Auto-save every 30 seconds
   useEffect(() => {
     const interval = setInterval(() => {
       if (currentProject) {
@@ -140,69 +137,94 @@ const IDEContent: React.FC = () => {
 
   return (
     <SidebarProvider>
-      <div className="flex h-screen w-full bg-background p-4 box-border overflow-hidden font-sans">
+      <div className="flex h-screen w-full bg-background p-3 md:p-5 box-border overflow-hidden font-sans">
         
-        {/* --- SIDEBAR FLOTANTE (Claymorphism) --- */}
+        {/* === SIDEBAR CLAYMORPHISM === */}
         <Sidebar className="border-none bg-transparent shadow-none z-50" collapsible="icon">
-          <SidebarContent className="bg-card rounded-3xl shadow-clay-card border-none mx-2 my-2 transition-all duration-300">
-            <SidebarHeader className="p-6 pb-2">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-black shadow-glow-sm">
-                  A
+          <SidebarContent className="ide-panel mx-2 my-2 transition-all duration-300 overflow-hidden">
+            
+            {/* Header con Logo */}
+            <SidebarHeader className="p-5 pb-4">
+              <motion.div 
+                className="flex items-center gap-3"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.5 }}
+              >
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-black shadow-lg glow-primary">
+                  <Cpu className="w-5 h-5" />
                 </div>
-                <span className="font-black text-primary text-xl tracking-tight group-data-[collapsible=icon]:hidden">
-                  ArduIDE
-                </span>
-              </div>
+                <div className="group-data-[collapsible=icon]:hidden">
+                  <span className="font-black text-primary text-xl tracking-tight block">
+                    ArduIDE
+                  </span>
+                  <span className="text-[10px] text-muted-foreground font-semibold">
+                    Para pequeños inventores ✨
+                  </span>
+                </div>
+              </motion.div>
             </SidebarHeader>
 
-            <SidebarMenu className="px-4 py-4 gap-2">
-              <SidebarMenuItem>
-                <SidebarMenuButton className="h-12 rounded-xl hover:bg-primary/10 hover:text-primary transition-all font-bold text-muted-foreground data-[active=true]:bg-primary/10 data-[active=true]:text-primary">
-                  <Home className="w-5 h-5" />
-                  <span className="text-base">Inicio</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton className="h-12 rounded-xl hover:bg-primary/10 hover:text-primary transition-all font-bold text-muted-foreground">
-                  <Cloud className="w-5 h-5" />
-                  <span className="text-base">Mis Proyectos</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton className="h-12 rounded-xl hover:bg-primary/10 hover:text-primary transition-all font-bold text-muted-foreground">
-                  <Settings className="w-5 h-5" />
-                  <span className="text-base">Ajustes</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+            {/* Menu Items */}
+            <SidebarMenu className="px-3 py-2 gap-1.5">
+              {[
+                { icon: Home, label: 'Inicio', active: true },
+                { icon: Cloud, label: 'Mis Proyectos', active: false },
+                { icon: Sparkles, label: 'Tutoriales', active: false },
+                { icon: Settings, label: 'Ajustes', active: false },
+              ].map((item, index) => (
+                <SidebarMenuItem key={item.label}>
+                  <SidebarMenuButton 
+                    className={`h-12 rounded-xl font-bold transition-all duration-200 ${
+                      item.active 
+                        ? 'bg-gradient-to-r from-primary/15 to-secondary/10 text-primary shadow-sm' 
+                        : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+                    }`}
+                  >
+                    <item.icon className="w-5 h-5" />
+                    <span className="text-sm">{item.label}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
             </SidebarMenu>
 
+            {/* Footer con Usuario */}
             <SidebarFooter className="p-4 mt-auto">
               {isAuthenticated ? (
-                <div className="bg-secondary/20 p-3 rounded-2xl flex items-center gap-3 group-data-[collapsible=icon]:justify-center">
-                  <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-white font-bold text-xs shrink-0">
+                <motion.div 
+                  className="clay-btn p-3 flex items-center gap-3 group-data-[collapsible=icon]:justify-center"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                >
+                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-secondary to-primary flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-md">
                     {user?.email?.charAt(0).toUpperCase()}
                   </div>
                   <div className="flex-1 overflow-hidden group-data-[collapsible=icon]:hidden">
-                    <p className="text-xs font-bold truncate text-secondary-foreground">{user?.email}</p>
-                    <button onClick={() => signOut()} className="text-[10px] text-muted-foreground hover:text-destructive flex items-center gap-1 mt-1 font-bold">
-                      <LogOut className="w-3 h-3" /> Salir
+                    <p className="text-xs font-bold truncate text-foreground">{user?.email}</p>
+                    <button 
+                      onClick={() => signOut()} 
+                      className="text-[10px] text-muted-foreground hover:text-destructive flex items-center gap-1 mt-0.5 font-bold transition-colors"
+                    >
+                      <LogOut className="w-3 h-3" /> Cerrar sesión
                     </button>
                   </div>
-                </div>
+                </motion.div>
               ) : (
-                <div className="p-2 text-center text-xs text-muted-foreground font-medium group-data-[collapsible=icon]:hidden">
-                  No conectado
+                <div className="p-3 text-center text-xs text-muted-foreground font-semibold group-data-[collapsible=icon]:hidden bg-muted/30 rounded-xl">
+                  👋 No conectado
                 </div>
               )}
             </SidebarFooter>
           </SidebarContent>
         </Sidebar>
 
-        {/* --- CONTENIDO PRINCIPAL --- */}
+        {/* === CONTENIDO PRINCIPAL === */}
         <main className="flex-1 flex flex-col min-w-0 gap-4 h-full relative z-10 pl-2">
           
-          {/* TOOLBAR TIPO ISLA */}
+          {/* Barra Rainbow decorativa */}
+          <div className="rainbow-bar rounded-full mx-4" />
+          
+          {/* TOOLBAR */}
           <div className="w-full relative z-20">
             <Toolbar 
               onSave={handleSave}
@@ -213,77 +235,108 @@ const IDEContent: React.FC = () => {
             />
           </div>
 
-          {/* ÁREA DE TRABAJO HUNDIDA (Neumorphism Pressed) */}
-          <div className="flex-1 rounded-3xl border-4 border-white/50 bg-white/40 shadow-neu-pressed overflow-hidden relative backdrop-blur-sm">
+          {/* ÁREA DE TRABAJO - NEUMORPHISM INSET */}
+          <motion.div 
+            className="flex-1 workspace-inset overflow-hidden relative"
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.4, delay: 0.2 }}
+          >
             <ResizablePanelGroup direction="horizontal" className="h-full w-full">
               
-              {/* --- PANEL IZQUIERDO: BLOCKLY --- */}
-              <ResizablePanel defaultSize={60} minSize={30} className="p-3">
-                <div className="h-full w-full rounded-2xl overflow-hidden bg-white shadow-inner border border-white/50 relative group">
-                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary to-secondary z-10 opacity-50"></div>
-                  <BlocklyEditor 
-                    initialXml={currentProject?.blocklyXml}
-                  />
-                  {/* Etiqueta flotante */}
-                  <div className="absolute bottom-4 right-4 bg-white/80 backdrop-blur px-3 py-1 rounded-full text-xs font-bold text-primary shadow-sm pointer-events-none">
+              {/* === PANEL BLOCKLY === */}
+              <ResizablePanel defaultSize={60} minSize={35} className="p-3">
+                <div className="h-full w-full ide-panel overflow-hidden relative group">
+                  {/* Barra de color superior */}
+                  <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-primary via-secondary to-accent z-10 opacity-80" />
+                  
+                  <BlocklyEditor initialXml={currentProject?.blocklyXml} />
+                  
+                  {/* Label flotante */}
+                  <motion.div 
+                    className="floating-label bottom-4 right-4 text-primary flex items-center gap-2"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.5 }}
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
                     Editor de Bloques
-                  </div>
+                  </motion.div>
                 </div>
               </ResizablePanel>
 
-              <ResizableHandle withHandle className="bg-transparent w-4 hover:bg-primary/20 transition-colors" />
+              {/* Handle con estilo */}
+              <ResizableHandle 
+                withHandle 
+                className="bg-transparent w-5 group hover:bg-primary/10 transition-colors rounded-full mx-1" 
+              />
 
-              {/* --- PANEL DERECHO: CÓDIGO & CONSOLA --- */}
-              <ResizablePanel defaultSize={40} minSize={25} className="p-3 pl-0">
-                <div className="h-full w-full flex flex-col rounded-2xl overflow-hidden bg-card shadow-clay-card border border-white/60">
+              {/* === PANEL CÓDIGO & CONSOLA === */}
+              <ResizablePanel defaultSize={40} minSize={28} className="p-3 pl-0">
+                <div className="h-full w-full flex flex-col ide-panel overflow-hidden">
                   
                   <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="h-full flex flex-col">
-                    {/* Header de Pestañas estilo Carpeta */}
-                    <div className="px-2 pt-2 bg-gradient-to-b from-white to-gray-50 border-b border-gray-100">
-                      <TabsList className="bg-transparent h-12 p-0 w-full justify-start gap-2">
-                        <TabsTrigger 
-                          value="code" 
-                          className="rounded-t-xl rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-white data-[state=active]:shadow-sm px-4 h-12 gap-2 text-muted-foreground data-[state=active]:text-primary font-bold transition-all"
-                        >
-                          <Code className="w-4 h-4" />
-                          Código C++
-                        </TabsTrigger>
-                        <TabsTrigger 
-                          value="console"
-                          className="rounded-t-xl rounded-b-none border-b-2 border-transparent data-[state=active]:border-warning data-[state=active]:bg-white data-[state=active]:shadow-sm px-4 h-12 gap-2 text-muted-foreground data-[state=active]:text-warning-foreground font-bold transition-all"
-                        >
-                          <Terminal className="w-4 h-4" />
-                          Consola
-                          {/* Badge de notificación simulado */}
-                          <span className="w-2 h-2 rounded-full bg-warning ml-1"></span>
-                        </TabsTrigger>
-                        <TabsTrigger 
-                          value="serial"
-                          className="rounded-t-xl rounded-b-none border-b-2 border-transparent data-[state=active]:border-success data-[state=active]:bg-white data-[state=active]:shadow-sm px-4 h-12 gap-2 text-muted-foreground data-[state=active]:text-success font-bold transition-all"
-                        >
-                          <Radio className="w-4 h-4" />
-                          Monitor Serie
-                        </TabsTrigger>
+                    
+                    {/* Header de Pestañas */}
+                    <div className="px-3 pt-3 bg-gradient-to-b from-muted/30 to-transparent">
+                      <TabsList className="bg-transparent h-auto p-0 w-full justify-start gap-1 flex-wrap">
+                        {[
+                          { value: 'code', icon: Code, label: 'Código', color: 'primary' },
+                          { value: 'console', icon: Terminal, label: 'Consola', color: 'warning' },
+                          { value: 'serial', icon: Radio, label: 'Monitor', color: 'success' },
+                        ].map((tab) => (
+                          <TabsTrigger 
+                            key={tab.value}
+                            value={tab.value}
+                            className={`tab-candy gap-2 data-[state=active]:text-${tab.color}`}
+                          >
+                            <tab.icon className="w-4 h-4" />
+                            <span className="hidden sm:inline">{tab.label}</span>
+                          </TabsTrigger>
+                        ))}
                       </TabsList>
                     </div>
 
                     {/* Contenido de Pestañas */}
-                    <div className="flex-1 bg-white p-0 overflow-hidden relative">
-                      {activeTab === 'code' && (
-                        <div className="h-full w-full animate-in fade-in duration-300">
-                           <CodePanel />
-                        </div>
-                      )}
-                      {activeTab === 'console' && (
-                        <div className="h-full w-full p-2 bg-[#1e1e1e] animate-in fade-in duration-300">
-                           <ConsolePanel />
-                        </div>
-                      )}
-                      {activeTab === 'serial' && (
-                        <div className="h-full w-full animate-in fade-in duration-300">
-                           <SerialMonitor />
-                        </div>
-                      )}
+                    <div className="flex-1 overflow-hidden relative bg-card rounded-b-2xl">
+                      <AnimatePresence mode="wait">
+                        {activeTab === 'code' && (
+                          <motion.div 
+                            key="code"
+                            className="h-full w-full"
+                            initial={{ opacity: 0, x: 10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -10 }}
+                            transition={{ duration: 0.2 }}
+                          >
+                            <CodePanel />
+                          </motion.div>
+                        )}
+                        {activeTab === 'console' && (
+                          <motion.div 
+                            key="console"
+                            className="h-full w-full"
+                            initial={{ opacity: 0, x: 10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -10 }}
+                            transition={{ duration: 0.2 }}
+                          >
+                            <ConsolePanel />
+                          </motion.div>
+                        )}
+                        {activeTab === 'serial' && (
+                          <motion.div 
+                            key="serial"
+                            className="h-full w-full"
+                            initial={{ opacity: 0, x: 10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -10 }}
+                            transition={{ duration: 0.2 }}
+                          >
+                            <SerialMonitor />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
                   </Tabs>
 
@@ -291,28 +344,33 @@ const IDEContent: React.FC = () => {
               </ResizablePanel>
 
             </ResizablePanelGroup>
-          </div>
+          </motion.div>
 
-          {/* STATUS BAR FLOTANTE */}
-          <div className="h-8 bg-white/60 backdrop-blur rounded-full px-6 flex items-center justify-between text-xs font-bold text-muted-foreground shadow-sm mx-2 mb-1">
+          {/* STATUS BAR */}
+          <motion.div 
+            className="toolbar-island mx-2 mb-1 justify-between text-xs font-bold text-muted-foreground"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+          >
             <div className="flex items-center gap-4">
               <span className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
+                <span className="status-dot status-dot-connected" />
                 Arduino Web IDE v1.0
               </span>
               {currentProject && (
-                <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-md">
-                  Proyecto: {currentProject.name}
+                <span className="badge-candy">
+                  📁 {currentProject.name}
                 </span>
               )}
             </div>
             <div className="flex items-center gap-4">
-              <span className="flex items-center gap-1">
-                <Cloud className="w-3 h-3" />
-                Auto-guardado: ACTIVO
+              <span className="flex items-center gap-2 text-success">
+                <Cloud className="w-3.5 h-3.5" />
+                Auto-guardado ✓
               </span>
             </div>
-          </div>
+          </motion.div>
 
         </main>
       </div>
