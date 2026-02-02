@@ -446,6 +446,61 @@
   border-radius: 1rem !important;
 }
 
+.blockly-container .blocklyScrollbarVertical,
+.blockly-container .blocklyScrollbarHorizontal {
+  border-radius: 8px;
+}
+
+/* Fix for scrollbar issues when toolbox opens/closes */
+.blockly-container .blocklyFlyoutScrollbar {
+  border-radius: 4px;
+}
+
+/* === RESPONSIVE ADJUSTMENTS === */
+@media (max-width: 768px) {
+  .toolbar-island {
+    @apply px-2 py-2 gap-1;
+  }
+  
+  .clay-btn {
+    @apply px-3 py-2 text-xs;
+  }
+  
+  .ide-panel {
+    @apply rounded-2xl;
+  }
+  
+  .workspace-inset {
+    @apply rounded-2xl;
+  }
+  
+  /* Larger touch targets on mobile */
+  .clay-btn {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Adjust status bar for mobile */
+  .toolbar-island.justify-between {
+    @apply flex-col gap-2 text-center;
+  }
+}
+
+@media (max-width: 640px) {
+  .clay-btn span.hidden {
+    display: none !important;
+  }
+  
+  .toolbar-island {
+    @apply justify-center;
+  }
+  
+  /* Stack toolbar items on very small screens */
+  .toolbar-island > div {
+    @apply justify-center;
+  }
+}
+
 @layer utilities {
   .no-scrollbar::-webkit-scrollbar {
     display: none;

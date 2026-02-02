@@ -12,6 +12,7 @@ const BlocklyEditor: React.FC<BlocklyEditorProps> = ({ onCodeChange, initialXml 
   const containerRef = useRef<HTMLDivElement>(null);
   const workspaceRef = useRef<Blockly.WorkspaceSvg | null>(null);
   const generatorRef = useRef<any>(null);
+  const isInitializedRef = useRef(false);
   const { setGeneratedCode, addConsoleMessage } = useIDE();
 
   const generateCode = useCallback(() => {
@@ -24,20 +25,32 @@ const BlocklyEditor: React.FC<BlocklyEditorProps> = ({ onCodeChange, initialXml 
       onCodeChange?.(code);
     } catch (error) {
       console.error('Code generation error:', error);
-      addConsoleMessage('error', `Code generation error: ${error}`);
+      addConsoleMessage('error', `Error generando código: ${error}`);
     }
   }, [setGeneratedCode, onCodeChange, addConsoleMessage]);
 
+  // Force resize when component mounts or visibility changes
+  const forceResize = useCallback(() => {
+    if (workspaceRef.current && containerRef.current) {
+      // Use requestAnimationFrame to ensure DOM has updated
+      requestAnimationFrame(() => {
+        if (workspaceRef.current) {
+          Blockly.svgResize(workspaceRef.current);
+        }
+      });
+    }
+  }, []);
+
   useEffect(() => {
-    if (!containerRef.current) return;
+    if (!containerRef.current || isInitializedRef.current) return;
 
     // Define Arduino blocks
     defineArduinoBlocks();
     
-    // Crea el Generador
+    // Create Generator
     generatorRef.current = createArduinoGenerator();
 
-    // Crea un workspace
+    // Create workspace with kids theme
     const kidsTheme = Blockly.Theme.defineTheme('arduino-kids', {
       name: 'arduino-kids',
       base: Blockly.Themes.Classic,
@@ -87,7 +100,9 @@ const BlocklyEditor: React.FC<BlocklyEditorProps> = ({ onCodeChange, initialXml 
       sounds: false,
     });
 
-    // Agrega los bloques default del proyecto si no hace un upload
+    isInitializedRef.current = true;
+
+    // Load initial XML or default blocks
     if (!initialXml) {
       const defaultXml = `
         <xml xmlns="https://developers.google.com/blockly/xml">
@@ -147,14 +162,15 @@ const BlocklyEditor: React.FC<BlocklyEditorProps> = ({ onCodeChange, initialXml 
         );
       } catch (error) {
         console.error('Error loading XML:', error);
+        addConsoleMessage('error', `Error cargando bloques: ${error}`);
       }
     }
 
-    // Genera el codigo inicial, puede ser el de testeo o a su vez si lo hacemos con un upload
+    // Generate initial code
     setTimeout(generateCode, 100);
 
-    // Es cucha si hay cambios en el workspace
-    workspaceRef.current.addChangeListener((event: Blockly.Events.Abstract) => {
+    // Listen for workspace changes
+    const changeListener = (event: Blockly.Events.Abstract) => {
       if (
         event.type === Blockly.Events.BLOCK_CHANGE ||
         event.type === Blockly.Events.BLOCK_CREATE ||
@@ -163,23 +179,68 @@ const BlocklyEditor: React.FC<BlocklyEditorProps> = ({ onCodeChange, initialXml 
       ) {
         generateCode();
       }
-    });
 
-    // Handle resize
-    const resizeObserver = new ResizeObserver(() => {
-      if (workspaceRef.current) {
-        Blockly.svgResize(workspaceRef.current);
+      // Force resize on toolbox events to fix scroll issues
+      if (
+        event.type === Blockly.Events.TOOLBOX_ITEM_SELECT ||
+        event.type === Blockly.Events.CLICK
+      ) {
+        forceResize();
       }
+    };
+
+    workspaceRef.current.addChangeListener(changeListener);
+
+    // Handle resize with ResizeObserver
+    const resizeObserver = new ResizeObserver(() => {
+      forceResize();
     });
     resizeObserver.observe(containerRef.current);
 
-    return () => {
-      resizeObserver.disconnect();
-      if (workspaceRef.current) {
-        workspaceRef.current.dispose();
+    // Also handle window resize
+    const handleWindowResize = () => forceResize();
+    window.addEventListener('resize', handleWindowResize);
+
+    // Handle visibility change (when switching tabs/views)
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        setTimeout(forceResize, 100);
       }
     };
-  }, [generateCode, initialXml]);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Cleanup
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', handleWindowResize);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (workspaceRef.current) {
+        workspaceRef.current.removeChangeListener(changeListener);
+        workspaceRef.current.dispose();
+        workspaceRef.current = null;
+      }
+      isInitializedRef.current = false;
+    };
+  }, [generateCode, initialXml, forceResize, addConsoleMessage]);
+
+  // Handle initialXml changes (when loading a project)
+  useEffect(() => {
+    if (workspaceRef.current && initialXml && isInitializedRef.current) {
+      try {
+        workspaceRef.current.clear();
+        Blockly.Xml.domToWorkspace(
+          Blockly.utils.xml.textToDom(initialXml),
+          workspaceRef.current
+        );
+        setTimeout(() => {
+          generateCode();
+          forceResize();
+        }, 100);
+      } catch (error) {
+        console.error('Error updating workspace XML:', error);
+      }
+    }
+  }, [initialXml, generateCode, forceResize]);
 
   return (
     <div 
@@ -192,7 +253,7 @@ const BlocklyEditor: React.FC<BlocklyEditorProps> = ({ onCodeChange, initialXml 
 
 export default BlocklyEditor;
 
-// Exporta funcion para obtener el workspace XML
+// Export function to get workspace XML
 export const getWorkspaceXml = (workspace: Blockly.WorkspaceSvg): string => {
   const xml = Blockly.Xml.workspaceToDom(workspace);
   return Blockly.Xml.domToText(xml);
