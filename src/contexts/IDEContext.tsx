@@ -178,27 +178,21 @@ export const IDEProvider: React.FC<IDEProviderProps> = ({ children }) => {
   }, [addConsoleMessage]);
 
   const saveProject = useCallback(async (blocklyXml: string, code: string) => {
-    const codeToSave = generatedCode || code;
-
     if (!currentProject) {
-      await createNewProject('Proyecto sin título', blocklyXml, codeToSave);
+      await createNewProject('Proyecto sin título', blocklyXml, code);
       return;
     }
     
     try {
       const updated = await updateProject(currentProject.id, {
         blocklyXml,
-        generatedCode: codeToSave,
+        generatedCode: code, // Usar el parámetro 'code' pasado directamente
         board: selectedBoard.fqbn
       });
-      if (updated) {
-        setCurrentProject(updated);
-        addConsoleMessage('success', 'Proyecto guardado');
-      }
     } catch (error) {
       addConsoleMessage('error', `Error al guardar: ${error}`);
     }
-  }, [currentProject, generatedCode, selectedBoard.fqbn, createNewProject, addConsoleMessage]);
+  }, [currentProject, selectedBoard.fqbn, createNewProject]);
 
   const deleteCurrentProject = useCallback(async () => {
     if (!currentProject) return;

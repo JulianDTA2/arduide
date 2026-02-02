@@ -61,11 +61,8 @@ const Header: React.FC = () => {
         <img 
           src="/favicon.ico" 
           alt="ArduIDE Logo" 
-          className="w-8 h-8 object-contain"
+          className="w- h-8 object-contain"
         />
-        <span className="font-black text-lg text-primary hidden sm:inline">
-          ArduIDE
-        </span>
       </div>
 
       {/* Separator */}

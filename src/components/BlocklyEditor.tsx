@@ -181,11 +181,8 @@ const BlocklyEditor: React.FC<BlocklyEditorProps> = ({ onCodeChange, initialXml 
       }
 
       // Force resize on toolbox events to fix scroll issues
-      if (
-        event.type === Blockly.Events.TOOLBOX_ITEM_SELECT ||
-        event.type === Blockly.Events.CLICK
-      ) {
-        forceResize();
+      if (event.type === Blockly.Events.UI || event.type === Blockly.Events.VIEWPORT_CHANGE) {
+        Blockly.svgResize(workspaceRef.current!);
       }
     };
 

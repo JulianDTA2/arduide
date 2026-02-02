@@ -539,3 +539,15 @@
     overscroll-behavior: none;
   }
 }
+.blocklyWidgetDiv, .blocklyDropDownDiv {
+  z-index: 9999 !important;
+}
+
+.blocklyMainBackground {
+  stroke: none !important;
+}
+
+.blockly-container {
+  position: relative;
+  overflow: hidden;
+}

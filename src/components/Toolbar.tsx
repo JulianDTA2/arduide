@@ -45,6 +45,7 @@ import { exportToFile, importFromFile, exportAsIno } from '@/lib/file-operations
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import Header from './Header';
+import * as Blockly from 'blockly';
 
 interface ToolbarProps {
   onSave: () => void;
@@ -272,11 +273,11 @@ const Toolbar: React.FC<ToolbarProps> = ({
     const projectName = currentProject?.name || 'MiProyecto';
     
     // Get current Blockly XML from workspace
-    const workspace = (window as any).Blockly?.getMainWorkspace();
+    const workspace = Blockly.getMainWorkspace();
     let blocklyXml = '';
     if (workspace) {
-      const xml = (window as any).Blockly.Xml.workspaceToDom(workspace);
-      blocklyXml = (window as any).Blockly.Xml.domToText(xml);
+      const xml = Blockly.Xml.workspaceToDom(workspace);
+      blocklyXml = Blockly.Xml.domToText(xml);
     }
 
     const success = await exportToFile(

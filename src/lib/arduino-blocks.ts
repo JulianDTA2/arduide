@@ -463,12 +463,12 @@ export const createArduinoGenerator = (): any => {
 
     if (code.includes('void setup()') || code.includes('void loop()')) {
         // El usuario usó bloques de estructura explícita
-        return `// Generado por M4rk-IDE\n${definitions}\n\n${variables}\n\n${code}`;
+        return `// Generado por M4rk-IDE${definitions}${variables}\n\n${code}`;
     } else {
         // Generación automática de estructura
         setupFunction = `void setup() {\n  ${setups}\n}\n\n`;
         loopFunction = `void loop() {\n${code}\n}`;
-        return `// Generado por M4rk-IDE\n${definitions}\n\n${variables}\n\n${setupFunction}${loopFunction}`;
+        return `// Generado por M4rk-IDE${definitions}${variables}\n\n${setupFunction}${loopFunction}`;
     }
   };
 
