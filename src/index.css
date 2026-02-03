@@ -445,14 +445,14 @@
     4px 0 12px hsl(var(--neu-shadow-dark) / 0.15) !important;
 }
 
-/* === TOOLBOX CATEGORY BUTTONS - CLAYMORPHISM === */
+/* === TOOLBOX CATEGORY BUTTONS - CLAYMORPHISM (like clay-btn) === */
 .blockly-container .blocklyToolboxCategory {
-  margin: 6px 4px !important;
-  border-radius: 1rem !important;
+  margin: 8px 6px !important;
+  border-radius: 1.25rem !important;
   background: linear-gradient(145deg, hsl(var(--card)), hsl(var(--muted) / 0.3)) !important;
   box-shadow: 
-    4px 4px 8px hsl(var(--neu-shadow-dark) / 0.15),
-    -4px -4px 8px hsl(var(--neu-shadow-light)),
+    6px 6px 12px hsl(var(--neu-shadow-dark) / 0.2),
+    -6px -6px 12px hsl(var(--neu-shadow-light)),
     inset 0 1px 2px hsl(var(--neu-shadow-light)),
     inset 0 -1px 1px hsl(var(--neu-shadow-dark) / 0.05) !important;
   border: 2px solid hsl(var(--neu-shadow-light) / 0.6) !important;
@@ -463,21 +463,34 @@
 .blockly-container .blocklyToolboxCategory:hover {
   transform: translateY(-2px) !important;
   box-shadow: 
-    6px 6px 12px hsl(var(--neu-shadow-dark) / 0.2),
-    -6px -6px 12px hsl(var(--neu-shadow-light)),
+    8px 8px 16px hsl(var(--neu-shadow-dark) / 0.25),
+    -8px -8px 16px hsl(var(--neu-shadow-light)),
     inset 0 1px 2px hsl(var(--neu-shadow-light)),
     inset 0 -1px 1px hsl(var(--neu-shadow-dark) / 0.05) !important;
+}
+
+.blockly-container .blocklyToolboxCategory:active {
+  transform: translateY(0) scale(0.98) !important;
+  box-shadow: 
+    inset 4px 4px 8px hsl(var(--neu-shadow-dark) / 0.15),
+    inset -4px -4px 8px hsl(var(--neu-shadow-light) / 0.5) !important;
 }
 
 .blockly-container .blocklyToolboxCategory[aria-selected="true"],
 .blockly-container .blocklyTreeRowContentContainer:focus,
 .blockly-container .blocklyToolboxCategory.blocklyTreeSelected {
-  background: linear-gradient(145deg, hsl(var(--primary) / 0.15), hsl(var(--primary) / 0.08)) !important;
+  background: linear-gradient(145deg, hsl(var(--primary)), hsl(var(--primary) / 0.85)) !important;
   box-shadow: 
-    inset 3px 3px 6px hsl(var(--primary) / 0.2),
-    inset -3px -3px 6px hsl(var(--neu-shadow-light) / 0.5),
-    0 0 0 2px hsl(var(--primary) / 0.3) !important;
-  border-color: hsl(var(--primary) / 0.4) !important;
+    6px 6px 12px hsl(var(--primary) / 0.3),
+    -4px -4px 10px hsl(var(--neu-shadow-light)),
+    inset 0 2px 4px hsl(0 0% 100% / 0.3),
+    inset 0 -2px 4px hsl(var(--primary) / 0.2) !important;
+  border-color: hsl(var(--primary) / 0.3) !important;
+}
+
+.blockly-container .blocklyToolboxCategory[aria-selected="true"] .blocklyTreeLabel,
+.blockly-container .blocklyToolboxCategory.blocklyTreeSelected .blocklyTreeLabel {
+  color: hsl(var(--primary-foreground)) !important;
 }
 
 /* Category row styling */
