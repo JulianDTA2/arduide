@@ -445,52 +445,102 @@
     4px 0 12px hsl(var(--neu-shadow-dark) / 0.15) !important;
 }
 
-/* === TOOLBOX CATEGORY BUTTONS - CLAYMORPHISM (like clay-btn) === */
+/* === TOOLBOX CATEGORY BUTTONS - KIDS CLAYMORPHISM === */
 .blockly-container .blocklyToolboxCategory {
-  margin: 8px 6px !important;
-  border-radius: 1.25rem !important;
-  background: linear-gradient(145deg, hsl(var(--card)), hsl(var(--muted) / 0.3)) !important;
+  margin: 10px 8px !important;
+  border-radius: 1.5rem !important;
+  background: linear-gradient(145deg, hsl(var(--card)), hsl(var(--muted) / 0.4)) !important;
   box-shadow: 
-    6px 6px 12px hsl(var(--neu-shadow-dark) / 0.2),
-    -6px -6px 12px hsl(var(--neu-shadow-light)),
-    inset 0 1px 2px hsl(var(--neu-shadow-light)),
-    inset 0 -1px 1px hsl(var(--neu-shadow-dark) / 0.05) !important;
-  border: 2px solid hsl(var(--neu-shadow-light) / 0.6) !important;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    6px 6px 14px hsl(var(--neu-shadow-dark) / 0.2),
+    -6px -6px 14px hsl(var(--neu-shadow-light)),
+    inset 0 2px 4px hsl(0 0% 100% / 0.5),
+    inset 0 -2px 4px hsl(var(--neu-shadow-dark) / 0.08) !important;
+  border: 3px solid hsl(var(--neu-shadow-light) / 0.8) !important;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
   overflow: hidden !important;
+  position: relative !important;
+}
+
+/* Shimmer effect on idle */
+.blockly-container .blocklyToolboxCategory::before {
+  content: '' !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: -100% !important;
+  width: 100% !important;
+  height: 100% !important;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    hsl(0 0% 100% / 0.3),
+    transparent
+  ) !important;
+  animation: shimmer 3s ease-in-out infinite !important;
+  pointer-events: none !important;
+}
+
+@keyframes shimmer {
+  0%, 100% { left: -100%; }
+  50% { left: 100%; }
 }
 
 .blockly-container .blocklyToolboxCategory:hover {
-  transform: translateY(-2px) !important;
+  transform: translateY(-4px) scale(1.03) !important;
   box-shadow: 
-    8px 8px 16px hsl(var(--neu-shadow-dark) / 0.25),
-    -8px -8px 16px hsl(var(--neu-shadow-light)),
-    inset 0 1px 2px hsl(var(--neu-shadow-light)),
-    inset 0 -1px 1px hsl(var(--neu-shadow-dark) / 0.05) !important;
+    8px 8px 20px hsl(var(--neu-shadow-dark) / 0.25),
+    -8px -8px 20px hsl(var(--neu-shadow-light)),
+    inset 0 2px 4px hsl(0 0% 100% / 0.6),
+    inset 0 -2px 4px hsl(var(--neu-shadow-dark) / 0.08),
+    0 0 20px hsl(var(--primary) / 0.2) !important;
+  border-color: hsl(var(--primary) / 0.3) !important;
 }
 
 .blockly-container .blocklyToolboxCategory:active {
-  transform: translateY(0) scale(0.98) !important;
+  transform: translateY(0) scale(0.97) !important;
   box-shadow: 
-    inset 4px 4px 8px hsl(var(--neu-shadow-dark) / 0.15),
-    inset -4px -4px 8px hsl(var(--neu-shadow-light) / 0.5) !important;
+    inset 5px 5px 10px hsl(var(--neu-shadow-dark) / 0.2),
+    inset -5px -5px 10px hsl(var(--neu-shadow-light) / 0.6) !important;
+  transition: all 0.1s ease !important;
 }
 
+/* Selected state - Rainbow glow */
 .blockly-container .blocklyToolboxCategory[aria-selected="true"],
 .blockly-container .blocklyTreeRowContentContainer:focus,
 .blockly-container .blocklyToolboxCategory.blocklyTreeSelected {
-  background: linear-gradient(145deg, hsl(var(--primary)), hsl(var(--primary) / 0.85)) !important;
+  background: linear-gradient(145deg, hsl(var(--primary)), hsl(var(--primary) / 0.8)) !important;
   box-shadow: 
-    6px 6px 12px hsl(var(--primary) / 0.3),
-    -4px -4px 10px hsl(var(--neu-shadow-light)),
-    inset 0 2px 4px hsl(0 0% 100% / 0.3),
-    inset 0 -2px 4px hsl(var(--primary) / 0.2) !important;
-  border-color: hsl(var(--primary) / 0.3) !important;
+    6px 6px 16px hsl(var(--primary) / 0.4),
+    -4px -4px 12px hsl(var(--neu-shadow-light)),
+    inset 0 3px 6px hsl(0 0% 100% / 0.4),
+    inset 0 -3px 6px hsl(var(--primary) / 0.3),
+    0 0 25px hsl(var(--primary) / 0.4) !important;
+  border-color: hsl(0 0% 100% / 0.5) !important;
+  animation: selected-pulse 2s ease-in-out infinite !important;
+}
+
+@keyframes selected-pulse {
+  0%, 100% { 
+    box-shadow: 
+      6px 6px 16px hsl(var(--primary) / 0.4),
+      -4px -4px 12px hsl(var(--neu-shadow-light)),
+      inset 0 3px 6px hsl(0 0% 100% / 0.4),
+      inset 0 -3px 6px hsl(var(--primary) / 0.3),
+      0 0 25px hsl(var(--primary) / 0.4);
+  }
+  50% { 
+    box-shadow: 
+      6px 6px 16px hsl(var(--primary) / 0.5),
+      -4px -4px 12px hsl(var(--neu-shadow-light)),
+      inset 0 3px 6px hsl(0 0% 100% / 0.5),
+      inset 0 -3px 6px hsl(var(--primary) / 0.4),
+      0 0 35px hsl(var(--primary) / 0.5);
+  }
 }
 
 .blockly-container .blocklyToolboxCategory[aria-selected="true"] .blocklyTreeLabel,
 .blockly-container .blocklyToolboxCategory.blocklyTreeSelected .blocklyTreeLabel {
   color: hsl(var(--primary-foreground)) !important;
+  text-shadow: 0 1px 2px hsl(var(--primary) / 0.3) !important;
 }
 
 /* Category row styling */
