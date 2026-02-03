@@ -538,16 +538,6 @@
   }
 }
 
-/* White text when selected */
-.blockly-container .blocklyToolboxCategory[aria-selected="true"] .blocklyTreeLabel,
-.blockly-container .blocklyToolboxCategory.blocklyTreeSelected .blocklyTreeLabel,
-.blockly-container .blocklyToolboxCategory[aria-selected="true"] .blocklyTreeRow,
-.blockly-container .blocklyToolboxCategory.blocklyTreeSelected .blocklyTreeRow {
-  color: #ffffff !important;
-  text-shadow: 0 1px 3px hsl(200 70% 40% / 0.4) !important;
-  font-weight: 800 !important;
-}
-
 /* Category row styling */
 .blockly-container .blocklyTreeRow {
   padding: 10px 14px !important;
@@ -557,6 +547,12 @@
   min-height: 44px !important;
   display: flex !important;
   align-items: center !important;
+  background: transparent !important;
+}
+
+/* Remove default Blockly selection background */
+.blockly-container .blocklyTreeRow:not(.blocklyTreeRowSelected) {
+  background: transparent !important;
 }
 
 .blockly-container .blocklyTreeRowContentContainer {
@@ -565,32 +561,46 @@
   gap: 10px !important;
 }
 
-/* Category icon (color indicator) */
-.blockly-container .blocklyTreeIcon {
-  width: 20px !important;
-  height: 20px !important;
-  border-radius: 8px !important;
-  box-shadow: 
-    2px 2px 4px hsl(var(--neu-shadow-dark) / 0.2),
-    inset 1px 1px 2px hsl(0 0% 100% / 0.3) !important;
-}
-
-/* Category label text */
+/* Category label text - Default state */
 .blockly-container .blocklyTreeLabel {
   font-family: 'Nunito', 'Quicksand', sans-serif !important;
   font-weight: 700 !important;
   font-size: 0.875rem !important;
   color: hsl(var(--foreground)) !important;
   letter-spacing: 0.01em !important;
+  transition: color 0.2s ease !important;
 }
 
+/* Hover state label */
 .blockly-container .blocklyToolboxCategory:hover .blocklyTreeLabel {
-  color: hsl(var(--primary)) !important;
+  color: hsl(330 70% 55%) !important;
 }
 
-.blockly-container .blocklyToolboxCategory[aria-selected="true"] .blocklyTreeLabel {
-  color: hsl(var(--primary)) !important;
+/* ====== SELECTED STATE - WHITE TEXT ====== */
+/* Multiple selectors for maximum specificity */
+.blockly-container .blocklyToolboxCategory[aria-selected="true"] .blocklyTreeLabel,
+.blockly-container .blocklyToolboxCategory[aria-selected="true"] .blocklyTreeRow .blocklyTreeLabel,
+.blockly-container .blocklyToolboxCategory.blocklyTreeSelected .blocklyTreeLabel,
+.blockly-container .blocklyTreeRowSelected .blocklyTreeLabel,
+.blockly-container .blocklyTreeRow.blocklyTreeRowSelected .blocklyTreeLabel,
+.blocklyToolboxDiv .blocklyToolboxCategory[aria-selected="true"] .blocklyTreeLabel,
+.blocklyToolboxDiv .blocklyTreeRowSelected .blocklyTreeLabel {
+  color: #ffffff !important;
+  text-shadow: 0 2px 4px hsl(200 70% 35% / 0.5) !important;
   font-weight: 800 !important;
+}
+
+/* Also target any span inside selected categories */
+.blockly-container .blocklyToolboxCategory[aria-selected="true"] span,
+.blockly-container .blocklyTreeRowSelected span,
+.blocklyToolboxDiv .blocklyToolboxCategory[aria-selected="true"] span {
+  color: #ffffff !important;
+}
+
+/* Override any row backgrounds when selected */
+.blockly-container .blocklyToolboxCategory[aria-selected="true"] .blocklyTreeRow,
+.blockly-container .blocklyTreeRowSelected {
+  background: transparent !important;
 }
 
 /* Flyout panel */
